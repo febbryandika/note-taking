@@ -7,47 +7,68 @@ import {
   useNotebooks,
   useRenameNotebook,
 } from '@/hooks/useNotebooks'
+import { useToast } from '@/components/ui/Toast'
+import { NotebookFormModal } from './NotebookFormModal'
+import { ConfirmModal } from './ConfirmModal'
+import { TagCloud } from './TagCloud'
+
+type Notebook = { id: string; name: string }
 
 export function NotebookSidebar({
   activeNotebookId,
+  activeTag,
 }: {
   activeNotebookId?: string | 'all' | null
+  activeTag?: string
 }) {
   const notebooks = useNotebooks()
   const createNotebook = useCreateNotebook()
   const renameNotebook = useRenameNotebook()
   const deleteNotebook = useDeleteNotebook()
-  const [error, setError] = useState('')
+  const toast = useToast()
 
-  async function handleNewNotebook() {
-    const name = window.prompt('Notebook name')?.trim()
-    if (!name) return
-    setError('')
+  const [createOpen, setCreateOpen] = useState(false)
+  const [renameTarget, setRenameTarget] = useState<Notebook | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Notebook | null>(null)
+
+  const existingNames = notebooks.data?.map((nb) => nb.name) ?? []
+
+  async function handleCreate(name: string) {
     try {
       await createNotebook.mutateAsync(name)
+      toast.success(`Notebook "${name}" created`)
+      setCreateOpen(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create')
+      toast.error(err instanceof Error ? err.message : 'Failed to create notebook')
     }
   }
 
-  async function handleRename(id: string, currentName: string) {
-    const name = window.prompt('Rename notebook', currentName)?.trim()
-    if (!name || name === currentName) return
-    setError('')
+  async function handleRename(name: string) {
+    if (!renameTarget) return
     try {
-      await renameNotebook.mutateAsync({ id, name })
+      await renameNotebook.mutateAsync({ id: renameTarget.id, name })
+      toast.success('Notebook renamed')
+      setRenameTarget(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to rename')
+      toast.error(err instanceof Error ? err.message : 'Failed to rename notebook')
     }
   }
 
-  async function handleDelete(id: string, name: string) {
-    if (!window.confirm(`Delete notebook "${name}"?`)) return
-    setError('')
+  async function handleDelete() {
+    if (!deleteTarget) return
+    const target = deleteTarget
     try {
-      await deleteNotebook.mutateAsync(id)
+      await deleteNotebook.mutateAsync(target.id)
+      toast.success(`Notebook "${target.name}" deleted`)
+      setDeleteTarget(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete')
+      const message = err instanceof Error ? err.message : 'Failed to delete notebook'
+      if (message === 'Notebook has notes') {
+        toast.error('Cannot delete — move or trash the notes inside first.')
+      } else {
+        toast.error(message)
+      }
+      setDeleteTarget(null)
     }
   }
 
@@ -60,7 +81,7 @@ export function NotebookSidebar({
           </h2>
           <button
             type="button"
-            onClick={handleNewNotebook}
+            onClick={() => setCreateOpen(true)}
             disabled={createNotebook.isPending}
             className="text-muted-foreground hover:text-foreground disabled:opacity-50"
             aria-label="New notebook"
@@ -102,7 +123,7 @@ export function NotebookSidebar({
               <div className="absolute right-1 top-1/2 -translate-y-1/2 hidden items-center gap-0.5 group-hover:flex">
                 <button
                   type="button"
-                  onClick={() => handleRename(nb.id, nb.name)}
+                  onClick={() => setRenameTarget(nb)}
                   className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
                   aria-label="Rename notebook"
                   title="Rename notebook"
@@ -111,7 +132,7 @@ export function NotebookSidebar({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleDelete(nb.id, nb.name)}
+                  onClick={() => setDeleteTarget(nb)}
                   className="rounded p-1 text-muted-foreground hover:bg-background hover:text-destructive"
                   aria-label="Delete notebook"
                   title="Delete notebook"
@@ -122,9 +143,9 @@ export function NotebookSidebar({
             </div>
           )
         })}
-
-        {error && <p className="px-2 text-xs text-destructive">{error}</p>}
       </div>
+
+      <TagCloud activeTag={activeTag} />
 
       <div className="space-y-1 border-t border-border pt-3">
         <Link
@@ -136,6 +157,40 @@ export function NotebookSidebar({
           <span className="truncate">Trash</span>
         </Link>
       </div>
+
+      <NotebookFormModal
+        open={createOpen}
+        mode="create"
+        existingNames={existingNames}
+        isPending={createNotebook.isPending}
+        onSubmit={handleCreate}
+        onClose={() => setCreateOpen(false)}
+      />
+
+      <NotebookFormModal
+        open={renameTarget !== null}
+        mode="rename"
+        initialName={renameTarget?.name ?? ''}
+        existingNames={existingNames}
+        isPending={renameNotebook.isPending}
+        onSubmit={handleRename}
+        onClose={() => setRenameTarget(null)}
+      />
+
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title="Delete notebook?"
+        description={
+          deleteTarget
+            ? `"${deleteTarget.name}" will be permanently removed. Notes inside must be moved or trashed first.`
+            : ''
+        }
+        confirmLabel="Delete"
+        destructive
+        isPending={deleteNotebook.isPending}
+        onConfirm={handleDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

@@ -1,20 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearch } from '@tanstack/react-router'
+import { Link, useNavigate, useSearch } from '@tanstack/react-router'
 import { Pencil, Star, Trash2 } from 'lucide-react'
 import { useNotebooks } from '@/hooks/useNotebooks'
-import { useNote, useTrashNote, useUpdateNote } from '@/hooks/useNotes'
+import { useDeleteNote, useNote, useUpdateNote } from '@/hooks/useNotes'
 import { Skeleton } from '@/components/ui/Skeleton'
-
-function tagsToCsv(tags: string[]) {
-  return tags.join(', ')
-}
-
-function csvToTags(csv: string) {
-  return csv
-    .split(',')
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0)
-}
+import { useToast } from '@/components/ui/Toast'
+import { TagInput } from './TagInput'
+import { TipTapEditor } from './TipTapEditor'
 
 export function NoteEditor({ noteId }: { noteId: string }) {
   const navigate = useNavigate()
@@ -22,7 +14,8 @@ export function NoteEditor({ noteId }: { noteId: string }) {
   const note = useNote(noteId)
   const notebooks = useNotebooks()
   const updateNote = useUpdateNote()
-  const trashNote = useTrashNote()
+  const deleteNote = useDeleteNote()
+  const toast = useToast()
 
   const [mode, setMode] = useState<'read' | 'edit'>(search.edit === true ? 'edit' : 'read')
 
@@ -38,18 +31,20 @@ export function NoteEditor({ noteId }: { noteId: string }) {
   }, [])
 
   const [title, setTitle] = useState('')
+  const [bodyJson, setBodyJson] = useState('{}')
   const [bodyText, setBodyText] = useState('')
   const [notebookId, setNotebookId] = useState<string | null>(null)
-  const [tagsCsv, setTagsCsv] = useState('')
+  const [tags, setTags] = useState<string[]>([])
   const [isPinned, setIsPinned] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
     if (!note.data) return
     setTitle(note.data.title)
+    setBodyJson(note.data.bodyJson)
     setBodyText(note.data.bodyText)
     setNotebookId(note.data.notebookId)
-    setTagsCsv(tagsToCsv(note.data.tags))
+    setTags(note.data.tags)
     setIsPinned(note.data.isPinned)
   }, [note.data])
 
@@ -69,9 +64,10 @@ export function NoteEditor({ noteId }: { noteId: string }) {
       await updateNote.mutateAsync({
         id: noteId,
         title,
+        bodyJson,
         bodyText,
         notebookId,
-        tags: csvToTags(tagsCsv),
+        tags,
         isPinned,
       })
       setMode('read')
@@ -83,17 +79,33 @@ export function NoteEditor({ noteId }: { noteId: string }) {
   function handleCancel() {
     if (!note.data) return
     setTitle(note.data.title)
+    setBodyJson(note.data.bodyJson)
     setBodyText(note.data.bodyText)
     setNotebookId(note.data.notebookId)
-    setTagsCsv(tagsToCsv(note.data.tags))
+    setTags(note.data.tags)
     setIsPinned(note.data.isPinned)
     setError('')
     setMode('read')
   }
 
   async function handleTrash() {
-    await trashNote.mutateAsync(noteId)
-    navigate({ to: '/notes', search: (prev) => prev })
+    const title = note.data?.title || 'Untitled'
+    try {
+      await deleteNote.mutateAsync(noteId)
+      toast.success(`"${title}" moved to trash`)
+      navigate({ to: '/notes', search: (prev) => prev })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to move note to trash')
+    }
+  }
+
+  async function handleTogglePin() {
+    if (!note.data) return
+    try {
+      await updateNote.mutateAsync({ id: noteId, isPinned: !note.data.isPinned })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update pin')
+    }
   }
 
   if (mode === 'read') {
@@ -102,6 +114,20 @@ export function NoteEditor({ noteId }: { noteId: string }) {
       <div className="mx-auto max-w-3xl space-y-4">
         <div className="flex items-center justify-end gap-3 text-xs text-muted-foreground">
           <span>Updated {new Date(note.data.updatedAt).toLocaleString()}</span>
+          <button
+            type="button"
+            onClick={handleTogglePin}
+            disabled={updateNote.isPending}
+            className={`inline-flex items-center gap-1 rounded-md border border-input px-2 py-1 hover:bg-muted disabled:opacity-50 ${
+              note.data.isPinned ? 'text-yellow-500' : ''
+            }`}
+            aria-label={note.data.isPinned ? 'Unpin' : 'Pin'}
+            aria-pressed={note.data.isPinned}
+            title={note.data.isPinned ? 'Unpin' : 'Pin'}
+          >
+            <Star className="h-3.5 w-3.5" fill={note.data.isPinned ? 'currentColor' : 'none'} />
+            {note.data.isPinned ? 'Pinned' : 'Pin'}
+          </button>
           <button
             type="button"
             onClick={() => setMode('edit')}
@@ -115,7 +141,7 @@ export function NoteEditor({ noteId }: { noteId: string }) {
           <button
             type="button"
             onClick={handleTrash}
-            disabled={trashNote.isPending}
+            disabled={deleteNote.isPending}
             className="inline-flex items-center gap-1 hover:text-destructive disabled:opacity-50"
             aria-label="Move to trash"
             title="Move to trash"
@@ -142,18 +168,25 @@ export function NoteEditor({ noteId }: { noteId: string }) {
               </span>
             )}
             {note.data.tags.map((tag) => (
-              <span
+              <Link
                 key={tag}
-                className="rounded-full bg-muted px-2 py-0.5 text-foreground/70"
+                to="/notes"
+                search={{ tag }}
+                className="rounded-full bg-muted px-2 py-0.5 text-foreground/70 transition-colors hover:bg-muted/70 hover:text-foreground"
               >
                 #{tag}
-              </span>
+              </Link>
             ))}
           </div>
         )}
 
-        {note.data.bodyText ? (
-          <div className="whitespace-pre-wrap text-sm leading-relaxed">{note.data.bodyText}</div>
+        {note.data.bodyText || (note.data.bodyJson && note.data.bodyJson !== '{}') ? (
+          <TipTapEditor
+            key={`read-${note.data.id}-${note.data.updatedAt}`}
+            bodyJson={note.data.bodyJson}
+            bodyText={note.data.bodyText}
+            editable={false}
+          />
         ) : (
           <p className="text-sm italic text-muted-foreground">No content yet — click Edit to start writing.</p>
         )}
@@ -210,24 +243,22 @@ export function NoteEditor({ noteId }: { noteId: string }) {
           </select>
         </label>
 
-        <label className="space-y-1 text-sm sm:col-span-2">
-          <span className="text-muted-foreground">Tags (comma-separated)</span>
-          <input
-            type="text"
-            value={tagsCsv}
-            onChange={(e) => setTagsCsv(e.target.value)}
-            placeholder="work, ideas, todo"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-        </label>
+        <div className="space-y-1 text-sm sm:col-span-2">
+          <span className="text-muted-foreground">Tags</span>
+          <TagInput tags={tags} onChange={setTags} placeholder="Type a tag, press Enter" />
+        </div>
       </div>
 
-      <textarea
-        value={bodyText}
-        onChange={(e) => setBodyText(e.target.value)}
-        rows={20}
+      <TipTapEditor
+        key={`edit-${noteId}`}
+        bodyJson={bodyJson}
+        bodyText={bodyText}
+        editable
+        onChange={(next) => {
+          setBodyJson(next.bodyJson)
+          setBodyText(next.bodyText)
+        }}
         placeholder="Start writing…"
-        className="w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
       />
 
       <div className="flex items-center justify-between">

@@ -17,6 +17,7 @@ const listQuerySchema = z.object({
 
 const createSchema = z.object({
   title: z.string().max(500).optional(),
+  bodyJson: z.string().optional(),
   bodyText: z.string().optional(),
   notebookId: z.string().nullable().optional(),
   tags: z.array(z.string().trim().min(1)).optional(),
@@ -55,6 +56,7 @@ export const notesRoute = new Hono<{ Variables: AuthVariables }>()
       .values({
         userId: user.id,
         ...(body.title !== undefined ? { title: body.title } : {}),
+        ...(body.bodyJson !== undefined ? { bodyJson: body.bodyJson } : {}),
         ...(body.bodyText !== undefined ? { bodyText: body.bodyText } : {}),
         ...(body.notebookId !== undefined ? { notebookId: body.notebookId } : {}),
         ...(body.tags !== undefined ? { tags: body.tags } : {}),
@@ -69,7 +71,7 @@ export const notesRoute = new Hono<{ Variables: AuthVariables }>()
     const [row] = await db
       .select()
       .from(notes)
-      .where(and(eq(notes.id, id), eq(notes.userId, user.id)))
+      .where(and(eq(notes.id, id), eq(notes.userId, user.id), isNull(notes.trashedAt)))
       .limit(1)
     if (!row) return c.json({ error: 'Not found' }, 404)
     return c.json(row)
@@ -82,6 +84,7 @@ export const notesRoute = new Hono<{ Variables: AuthVariables }>()
       .update(notes)
       .set({
         ...(body.title !== undefined ? { title: body.title } : {}),
+        ...(body.bodyJson !== undefined ? { bodyJson: body.bodyJson } : {}),
         ...(body.bodyText !== undefined ? { bodyText: body.bodyText } : {}),
         ...(body.notebookId !== undefined ? { notebookId: body.notebookId } : {}),
         ...(body.tags !== undefined ? { tags: body.tags } : {}),

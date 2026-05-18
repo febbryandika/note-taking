@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { client } from '@/lib/client'
+import { queryKeys } from './queryKeys'
 
-export const notebooksKey = ['notebooks'] as const
+const NOTEBOOK_STALE_MS = 60_000
 
 export function useNotebooks() {
   return useQuery({
-    queryKey: notebooksKey,
+    queryKey: queryKeys.notebooks.all,
     queryFn: async () => {
       const res = await client.api.notebooks.$get()
       if (!res.ok) throw new Error('Failed to load notebooks')
       return res.json()
     },
+    staleTime: NOTEBOOK_STALE_MS,
   })
 }
 
@@ -22,7 +24,7 @@ export function useCreateNotebook() {
       if (!res.ok) throw new Error('Failed to create notebook')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: notebooksKey }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.notebooks.all }),
   })
 }
 
@@ -37,7 +39,7 @@ export function useRenameNotebook() {
       if (!res.ok) throw new Error('Failed to rename notebook')
       return res.json()
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: notebooksKey }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.notebooks.all }),
   })
 }
 
@@ -51,8 +53,8 @@ export function useDeleteNotebook() {
       return res.json()
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: notebooksKey })
-      qc.invalidateQueries({ queryKey: ['notes'] })
+      qc.invalidateQueries({ queryKey: queryKeys.notebooks.all })
+      qc.invalidateQueries({ queryKey: queryKeys.notes.all })
     },
   })
 }

@@ -6,6 +6,7 @@ import { authClient } from '@/lib/auth-client'
 
 const notesSearchSchema = z.object({
   notebookId: z.string().optional(),
+  tag: z.string().optional(),
   edit: z.boolean().optional(),
 })
 
@@ -30,7 +31,10 @@ function NotesLayout() {
       }`}
     >
       <aside className="overflow-y-auto border-r border-border pr-2">
-        <NotebookSidebar activeNotebookId={search.notebookId ?? 'all'} />
+        <NotebookSidebar
+          activeNotebookId={search.tag ? null : search.notebookId ?? 'all'}
+          activeTag={search.tag}
+        />
       </aside>
       <section
         className={`overflow-y-auto ${isOnDetail ? 'border-r border-border pr-2' : ''}`}

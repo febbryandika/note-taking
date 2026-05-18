@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { RotateCcw, Trash2 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
@@ -7,7 +8,9 @@ import {
   useRestoreNote,
 } from '@/hooks/useNotes'
 import { NotebookSidebar } from '@/components/notes/NotebookSidebar'
+import { ConfirmModal } from '@/components/notes/ConfirmModal'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useToast } from '@/components/ui/Toast'
 
 export const Route = createFileRoute('/trash')({
   beforeLoad: async () => {
@@ -30,16 +33,36 @@ function TrashPage() {
   )
 }
 
+type DeleteTarget = { id: string; title: string }
+
 function TrashList() {
   const trashed = useNotes({ trashed: true })
   const restore = useRestoreNote()
   const permanentDelete = usePermanentDeleteNote()
+  const toast = useToast()
 
-  function handlePermanentDelete(id: string, title: string) {
-    if (!window.confirm(`Permanently delete "${title || 'Untitled'}"? This cannot be undone.`)) {
-      return
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null)
+
+  async function handleRestore(id: string) {
+    try {
+      await restore.mutateAsync(id)
+      toast.success('Note restored')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to restore note')
     }
-    permanentDelete.mutate(id)
+  }
+
+  async function handlePermanentDelete() {
+    if (!deleteTarget) return
+    const target = deleteTarget
+    try {
+      await permanentDelete.mutateAsync(target.id)
+      toast.success(`"${target.title || 'Untitled'}" deleted permanently`)
+      setDeleteTarget(null)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete note')
+      setDeleteTarget(null)
+    }
   }
 
   return (
@@ -74,7 +97,7 @@ function TrashList() {
               <div className="flex items-center gap-2 text-sm">
                 <button
                   type="button"
-                  onClick={() => restore.mutate(n.id)}
+                  onClick={() => handleRestore(n.id)}
                   disabled={restore.isPending}
                   className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
                   aria-label="Restore"
@@ -85,7 +108,7 @@ function TrashList() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => handlePermanentDelete(n.id, n.title)}
+                  onClick={() => setDeleteTarget({ id: n.id, title: n.title })}
                   disabled={permanentDelete.isPending}
                   className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-1 text-destructive hover:bg-destructive/10 disabled:opacity-50"
                   aria-label="Delete permanently"
@@ -105,6 +128,21 @@ function TrashList() {
           <p className="text-xs text-muted-foreground">Deleted notes show up here.</p>
         </div>
       )}
+
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title="Delete permanently?"
+        description={
+          deleteTarget
+            ? `"${deleteTarget.title || 'Untitled'}" will be permanently deleted. This cannot be undone.`
+            : ''
+        }
+        confirmLabel="Delete permanently"
+        destructive
+        isPending={permanentDelete.isPending}
+        onConfirm={handlePermanentDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </div>
   )
 }

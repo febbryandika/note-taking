@@ -5,6 +5,7 @@ import { auth } from './lib/auth'
 import { requireAuth, type AuthVariables } from './lib/middleware'
 import { notebooksRoute } from './routes/notebooks'
 import { notesRoute } from './routes/notes'
+import { tagsRoute } from './routes/tags'
 
 const app = new Hono()
 
@@ -37,6 +38,7 @@ const api = new Hono<{ Variables: AuthVariables }>()
   })
   .route('/notebooks', notebooksRoute)
   .route('/notes', notesRoute)
+  .route('/tags', tagsRoute)
 
 const routes = app.route('/api', api)
 

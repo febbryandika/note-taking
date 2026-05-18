@@ -1,12 +1,15 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { useEffect, useRef } from 'react'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { NoteEditor } from '@/components/notes/NoteEditor'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { useToast } from '@/components/ui/Toast'
+import { queryKeys } from '@/hooks/queryKeys'
 import { client } from '@/lib/client'
 
 export const Route = createFileRoute('/notes/$noteId')({
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData({
-      queryKey: ['notes', 'detail', params.noteId],
+      queryKey: queryKeys.notes.detail(params.noteId),
       queryFn: async () => {
         const res = await client.api.notes[':id'].$get({ param: { id: params.noteId } })
         if (!res.ok) throw new Error('Note not found')
@@ -20,18 +23,27 @@ export const Route = createFileRoute('/notes/$noteId')({
       <Skeleton className="h-64 w-full" />
     </div>
   ),
-  errorComponent: () => (
-    <div className="space-y-3">
-      <p className="text-sm text-destructive">Note not found.</p>
-      <Link to="/notes" className="text-sm text-primary underline underline-offset-2">
-        Back to notes
-      </Link>
-    </div>
-  ),
+  errorComponent: NoteNotFoundRedirect,
   component: NoteRoute,
 })
 
 function NoteRoute() {
   const { noteId } = Route.useParams()
   return <NoteEditor key={noteId} noteId={noteId} />
+}
+
+function NoteNotFoundRedirect() {
+  const navigate = useNavigate()
+  const toast = useToast()
+  const fired = useRef(false)
+
+  useEffect(() => {
+    if (fired.current) return
+    fired.current = true
+    toast.error('Note not found')
+    navigate({ to: '/notes', search: (prev) => prev, replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return null
 }
