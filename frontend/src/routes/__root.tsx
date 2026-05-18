@@ -16,26 +16,15 @@ function RootLayout() {
 
   async function handleSignOut() {
     await signOut()
-    router.navigate({ to: '/login' })
+    router.navigate({ to: '/' })
   }
 
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b px-6 py-3 flex items-center gap-4">
-        <Link to="/" className="font-semibold text-foreground hover:text-primary">
-          My Project
+        <Link to="/" className="text-2xl font-bold tracking-tight text-foreground hover:text-primary">
+          Notes
         </Link>
-
-        {session && (
-          <div className="flex items-center gap-3 text-sm">
-            <Link to="/notes" className="text-muted-foreground hover:text-foreground">
-              Notes
-            </Link>
-            <Link to="/trash" className="text-muted-foreground hover:text-foreground">
-              Trash
-            </Link>
-          </div>
-        )}
 
         <div className="ml-auto flex items-center gap-4 text-sm">
           {isPending ? null : session ? (

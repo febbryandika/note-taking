@@ -3,6 +3,8 @@ import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
 import { auth } from './lib/auth'
 import { requireAuth, type AuthVariables } from './lib/middleware'
+import { notebooksRoute } from './routes/notebooks'
+import { notesRoute } from './routes/notes'
 
 const app = new Hono()
 
@@ -26,19 +28,20 @@ app.on(['GET', 'POST'], '/api/auth/**', (c) => auth.handler(c.req.raw))
 // Health check
 app.get('/api/health', (c) => c.json({ status: 'ok' }))
 
-// Protected routes example
+// Protected routes — chain so types flow into AppType for the Hono RPC client
 const api = new Hono<{ Variables: AuthVariables }>()
-api.use('*', requireAuth)
+  .use('*', requireAuth)
+  .get('/me', (c) => {
+    const user = c.get('user')
+    return c.json({ user })
+  })
+  .route('/notebooks', notebooksRoute)
+  .route('/notes', notesRoute)
 
-api.get('/me', (c) => {
-  const user = c.get('user')
-  return c.json({ user })
-})
-
-app.route('/api', api)
+const routes = app.route('/api', api)
 
 // Export for RPC type inference
-export type AppType = typeof app
+export type AppType = typeof routes
 
 const port = Number(process.env.PORT ?? 3000)
 console.log(`Server running on http://localhost:${port}`)

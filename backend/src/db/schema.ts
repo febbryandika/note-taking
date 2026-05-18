@@ -1,4 +1,6 @@
-import { pgTable, text, timestamp, boolean } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { pgTable, text, timestamp, boolean, index } from 'drizzle-orm/pg-core'
+import { createId } from '@paralleldrive/cuid2'
 
 // ── better-auth required tables ──────────────────────────────────────────────
 // Do NOT rename these tables or columns — better-auth expects this exact shape.
@@ -51,12 +53,29 @@ export const verification = pgTable('verification', {
 })
 
 // ── Your app tables go below ──────────────────────────────────────────────────
-// Example:
-// import { createId } from '@paralleldrive/cuid2'
-//
-// export const posts = pgTable('posts', {
-//   id:        text('id').primaryKey().$defaultFn(() => createId()),
-//   userId:    text('user_id').notNull().references(() => user.id),
-//   title:     text('title').notNull(),
-//   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-// })
+
+export const notebooks = pgTable('notebooks', {
+  id:        text('id').primaryKey().$defaultFn(() => createId()),
+  userId:    text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  name:      text('name').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('idx_notebook_user').on(t.userId),
+])
+
+export const notes = pgTable('notes', {
+  id:         text('id').primaryKey().$defaultFn(() => createId()),
+  userId:     text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  notebookId: text('notebook_id').references(() => notebooks.id, { onDelete: 'set null' }),
+  title:      text('title').notNull().default('Untitled'),
+  bodyJson:   text('body_json').notNull().default('{}'),
+  bodyText:   text('body_text').notNull().default(''),
+  tags:       text('tags').array().notNull().default(sql`'{}'::text[]`),
+  isPinned:   boolean('is_pinned').notNull().default(false),
+  trashedAt:  timestamp('trashed_at', { withTimezone: true }),
+  createdAt:  timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt:  timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index('idx_note_user').on(t.userId),
+  index('idx_note_notebook').on(t.notebookId),
+])
