@@ -2,12 +2,13 @@ import { Link, createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { authClient } from '@/lib/auth-client'
 
-export const Route = createFileRoute('/login')({
-  component: LoginPage,
+export const Route = createFileRoute('/register')({
+  component: RegisterPage,
 })
 
-function LoginPage() {
+function RegisterPage() {
   const router = useRouter()
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,9 +19,9 @@ function LoginPage() {
     setError('')
     setLoading(true)
 
-    const { error: signInError } = await authClient.signIn.email({ email, password })
-    if (signInError) {
-      setError(signInError.message ?? 'Sign in failed')
+    const { error: signUpError } = await authClient.signUp.email({ email, password, name })
+    if (signUpError) {
+      setError(signUpError.message ?? 'Sign up failed')
       setLoading(false)
       return
     }
@@ -32,16 +33,29 @@ function LoginPage() {
     <div className="flex items-center justify-center min-h-[60vh]">
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-1 text-center">
-          <h2 className="text-2xl font-bold">Sign in</h2>
+          <h2 className="text-2xl font-bold">Create account</h2>
           <p className="text-muted-foreground text-sm">
-            Don&apos;t have an account?{' '}
-            <Link to="/register" className="text-primary underline underline-offset-2">
-              Register
+            Already have an account?{' '}
+            <Link to="/login" className="text-primary underline underline-offset-2">
+              Sign in
             </Link>
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1">
+            <label htmlFor="name" className="text-sm font-medium">Name</label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Your name"
+            />
+          </div>
+
           <div className="space-y-1">
             <label htmlFor="email" className="text-sm font-medium">Email</label>
             <input
@@ -75,7 +89,7 @@ function LoginPage() {
             disabled={loading}
             className="w-full rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
-            {loading ? 'Loading...' : 'Sign in'}
+            {loading ? 'Loading...' : 'Create account'}
           </button>
         </form>
       </div>

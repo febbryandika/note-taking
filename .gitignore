@@ -68,3 +68,10 @@ temp/
 
 # Misc
 *.local
+
+# Private project documentation
+CLAUDE.MD
+CLAUDE.md
+
+# Local tooling
+.claude/

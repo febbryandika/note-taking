@@ -1,5 +1,6 @@
-import { createRootRouteWithContext, Link, Outlet } from '@tanstack/react-router'
+import { createRootRouteWithContext, Link, Outlet, useRouter } from '@tanstack/react-router'
 import type { QueryClient } from '@tanstack/react-query'
+import { signOut, useSession } from '@/lib/auth-client'
 
 interface RouterContext {
   queryClient: QueryClient
@@ -10,19 +11,54 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 })
 
 function RootLayout() {
+  const router = useRouter()
+  const { data: session, isPending } = useSession()
+
+  async function handleSignOut() {
+    await signOut()
+    router.navigate({ to: '/login' })
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b px-6 py-3 flex items-center gap-4">
         <Link to="/" className="font-semibold text-foreground hover:text-primary">
           My Project
         </Link>
-        <div className="ml-auto flex items-center gap-4">
-          <Link
-            to="/login"
-            className="text-sm text-muted-foreground hover:text-foreground"
-          >
-            Login
-          </Link>
+
+        {session && (
+          <div className="flex items-center gap-3 text-sm">
+            <Link to="/notes" className="text-muted-foreground hover:text-foreground">
+              Notes
+            </Link>
+            <Link to="/trash" className="text-muted-foreground hover:text-foreground">
+              Trash
+            </Link>
+          </div>
+        )}
+
+        <div className="ml-auto flex items-center gap-4 text-sm">
+          {isPending ? null : session ? (
+            <>
+              <span className="text-muted-foreground">{session.user.email}</span>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="text-muted-foreground hover:text-foreground">
+                Login
+              </Link>
+              <Link to="/register" className="text-muted-foreground hover:text-foreground">
+                Register
+              </Link>
+            </>
+          )}
         </div>
       </nav>
       <main className="container mx-auto px-6 py-8">
