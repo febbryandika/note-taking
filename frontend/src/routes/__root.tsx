@@ -23,7 +23,7 @@ function RootLayout() {
   return (
     <ToastProvider>
       <div className="min-h-screen bg-background">
-        <nav className="border-b px-6 py-3 flex items-center gap-4">
+        <nav className="flex items-center gap-4 border-b px-4 py-3 sm:px-6">
           <Link to="/" className="text-2xl font-bold tracking-tight text-foreground hover:text-primary">
             Notes
           </Link>
@@ -31,7 +31,9 @@ function RootLayout() {
           <div className="ml-auto flex items-center gap-4 text-sm">
             {isPending ? null : session ? (
               <>
-                <span className="text-muted-foreground">{session.user.email}</span>
+                <span className="hidden max-w-[16rem] truncate text-muted-foreground sm:inline">
+                  {session.user.email}
+                </span>
                 <button
                   type="button"
                   onClick={handleSignOut}
@@ -52,7 +54,7 @@ function RootLayout() {
             )}
           </div>
         </nav>
-        <main className="container mx-auto px-6 py-8">
+        <main className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
           <Outlet />
         </main>
       </div>

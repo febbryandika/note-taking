@@ -95,7 +95,7 @@ export function NotebookFormModal({
           onBlur={() => setTouched(true)}
           maxLength={MAX_NAME_LENGTH + 50}
           placeholder="e.g. Work, Ideas, Reading list"
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
         />
         {touched && error && (
           <p className="text-xs text-destructive">{error}</p>

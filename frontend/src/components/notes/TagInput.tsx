@@ -42,16 +42,16 @@ export function TagInput({ tags, onChange, placeholder = 'Add a tag…' }: Props
       {tags.map((tag) => (
         <span
           key={tag}
-          className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-foreground/80"
+          className="inline-flex items-center gap-1 rounded-full bg-muted py-1 pl-2 pr-1 text-xs text-foreground/80 md:py-0.5 md:pr-0.5"
         >
           #{tag}
           <button
             type="button"
             onClick={() => remove(tag)}
-            className="rounded-full p-0.5 text-muted-foreground hover:bg-background hover:text-destructive"
+            className="rounded-full p-1 text-muted-foreground hover:bg-background hover:text-destructive md:p-0.5"
             aria-label={`Remove tag ${tag}`}
           >
-            <X className="h-2.5 w-2.5" />
+            <X className="h-3 w-3 md:h-2.5 md:w-2.5" />
           </button>
         </span>
       ))}
@@ -62,7 +62,7 @@ export function TagInput({ tags, onChange, placeholder = 'Add a tag…' }: Props
         onKeyDown={handleKeyDown}
         onBlur={() => commit(draft)}
         placeholder={tags.length === 0 ? placeholder : ''}
-        className="flex-1 min-w-[6rem] bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+        className="min-w-[6rem] flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground md:text-sm"
       />
     </div>
   )

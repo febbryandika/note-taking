@@ -30,6 +30,20 @@ export function useNotes(filters: NoteFilters = {}) {
   })
 }
 
+export function useSearchNotes(q: string) {
+  const trimmed = q.trim()
+  return useQuery({
+    queryKey: queryKeys.notes.search(trimmed),
+    queryFn: async () => {
+      const res = await client.api.notes.search.$get({ query: { q: trimmed } })
+      if (!res.ok) throw new Error('Search failed')
+      return res.json()
+    },
+    enabled: trimmed.length > 0,
+    staleTime: NOTE_STALE_MS,
+  })
+}
+
 export function useNote(id: string) {
   return useQuery({
     queryKey: queryKeys.notes.detail(id),
@@ -46,7 +60,6 @@ export function useNote(id: string) {
 type CreateInput = {
   title?: string
   bodyJson?: string
-  bodyText?: string
   notebookId?: string | null
   tags?: string[]
   isPinned?: boolean

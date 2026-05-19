@@ -11,7 +11,7 @@ const nameSchema = z.object({
 })
 
 const paramSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(64),
 })
 
 export const notebooksRoute = new Hono<{ Variables: AuthVariables }>()

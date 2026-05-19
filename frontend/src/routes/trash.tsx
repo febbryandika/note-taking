@@ -1,16 +1,21 @@
 import { useState } from 'react'
-import { createFileRoute, redirect } from '@tanstack/react-router'
-import { RotateCcw, Trash2 } from 'lucide-react'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { Menu, RotateCcw, Trash2 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import {
+  useCreateNote,
   useNotes,
   usePermanentDeleteNote,
   useRestoreNote,
 } from '@/hooks/useNotes'
 import { NotebookSidebar } from '@/components/notes/NotebookSidebar'
 import { ConfirmModal } from '@/components/notes/ConfirmModal'
+import { Drawer } from '@/components/ui/Drawer'
+import { QueryError } from '@/components/ui/QueryError'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
+import { useIsDesktop } from '@/hooks/useMediaQuery'
+import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut'
 
 export const Route = createFileRoute('/trash')({
   beforeLoad: async () => {
@@ -21,6 +26,44 @@ export const Route = createFileRoute('/trash')({
 })
 
 function TrashPage() {
+  const navigate = useNavigate()
+  const isDesktop = useIsDesktop()
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const closeDrawer = () => setDrawerOpen(false)
+  const createNote = useCreateNote()
+  const toast = useToast()
+
+  useKeyboardShortcut({ key: 'n', mod: true }, async (e) => {
+    e.preventDefault()
+    try {
+      const created = await createNote.mutateAsync({})
+      navigate({
+        to: '/notes/$noteId',
+        params: { noteId: created.id },
+        search: { edit: true },
+      })
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create note')
+    }
+  })
+
+  useKeyboardShortcut({ key: 'Escape' }, () => {
+    if (drawerOpen) setDrawerOpen(false)
+  })
+
+  if (!isDesktop) {
+    return (
+      <>
+        <Drawer open={drawerOpen} onClose={closeDrawer} ariaLabel="Notebooks and tags">
+          <NotebookSidebar onNavigate={closeDrawer} />
+        </Drawer>
+        <div className="h-[calc(100dvh-7rem)] overflow-y-auto">
+          <TrashList onOpenSidebar={() => setDrawerOpen(true)} />
+        </div>
+      </>
+    )
+  }
+
   return (
     <div className="grid h-[calc(100vh-8rem)] grid-cols-[220px_1fr] gap-4">
       <aside className="overflow-y-auto border-r border-border pr-2">
@@ -35,7 +78,7 @@ function TrashPage() {
 
 type DeleteTarget = { id: string; title: string }
 
-function TrashList() {
+function TrashList({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   const trashed = useNotes({ trashed: true })
   const restore = useRestoreNote()
   const permanentDelete = usePermanentDeleteNote()
@@ -67,9 +110,27 @@ function TrashList() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Trash</h1>
+      <div className="flex items-center gap-2">
+        {onOpenSidebar && (
+          <button
+            type="button"
+            onClick={onOpenSidebar}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Open menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+        )}
+        <h1 className="text-2xl font-semibold">Trash</h1>
+      </div>
 
-      {trashed.isLoading ? (
+      {trashed.isError && !trashed.data ? (
+        <QueryError
+          message="Couldn’t load trash."
+          onRetry={() => trashed.refetch()}
+          isRetrying={trashed.isFetching}
+        />
+      ) : trashed.isLoading ? (
         <ul className="space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
             <li key={i} className="space-y-2 rounded-md border border-border p-3">
@@ -82,7 +143,10 @@ function TrashList() {
       ) : trashed.data && trashed.data.length > 0 ? (
         <ul className="divide-y divide-border rounded-md border border-border">
           {trashed.data.map((n) => (
-            <li key={n.id} className="flex items-start gap-3 p-3">
+            <li
+              key={n.id}
+              className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start"
+            >
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{n.title || 'Untitled'}</p>
                 {n.bodyText && (
@@ -99,7 +163,7 @@ function TrashList() {
                   type="button"
                   onClick={() => handleRestore(n.id)}
                   disabled={restore.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-input px-3 py-2 text-muted-foreground hover:text-foreground disabled:opacity-50 sm:flex-initial sm:py-1"
                   aria-label="Restore"
                   title="Restore"
                 >
@@ -110,7 +174,7 @@ function TrashList() {
                   type="button"
                   onClick={() => setDeleteTarget({ id: n.id, title: n.title })}
                   disabled={permanentDelete.isPending}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-destructive/40 px-3 py-1 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 text-destructive hover:bg-destructive/10 disabled:opacity-50 sm:flex-initial sm:py-1"
                   aria-label="Delete permanently"
                   title="Delete permanently"
                 >

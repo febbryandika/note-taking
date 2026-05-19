@@ -5,32 +5,95 @@ import { z } from 'zod'
 import { db } from '../db'
 import { notes } from '../db/schema'
 import type { AuthVariables } from '../lib/middleware'
+import { MAX_BODY_JSON_INPUT_BYTES, sanitizeTipTapJson } from '../lib/sanitize'
 
 const boolFlag = z.enum(['true', 'false']).optional()
 
 const listQuerySchema = z.object({
-  notebookId: z.string().optional(),
-  tag: z.string().optional(),
+  notebookId: z.string().min(1).max(64).optional(),
+  tag: z.string().trim().min(1).max(32).optional(),
   trashed: boolFlag,
   pinned: boolFlag,
 })
 
+// Each tag: trimmed, lower-cased, capped at 32 chars. The full set is capped
+// at 20 entries and deduped server-side so a client can't poison the tag cloud
+// with thousands of near-duplicates.
+const tagSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(32)
+  .transform((s) => s.toLowerCase())
+
+const tagsSchema = z
+  .array(tagSchema)
+  .max(20)
+  .transform((arr) => Array.from(new Set(arr)))
+
+// Parse + sanitize TipTap JSON inline. The transform yields both the
+// re-serialized JSON and the derived plaintext, so route handlers can drop
+// the client-supplied bodyText entirely.
+const bodyJsonSchema = z
+  .string()
+  .max(MAX_BODY_JSON_INPUT_BYTES, 'bodyJson too large')
+  .transform((s, ctx) => {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(s)
+    } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'bodyJson is not valid JSON' })
+      return z.NEVER
+    }
+    try {
+      return sanitizeTipTapJson(parsed)
+    } catch (e) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: e instanceof Error ? e.message : 'Invalid bodyJson',
+      })
+      return z.NEVER
+    }
+  })
+
 const createSchema = z.object({
-  title: z.string().max(500).optional(),
-  bodyJson: z.string().optional(),
-  bodyText: z.string().optional(),
-  notebookId: z.string().nullable().optional(),
-  tags: z.array(z.string().trim().min(1)).optional(),
+  title: z.string().trim().max(200).optional(),
+  bodyJson: bodyJsonSchema.optional(),
+  notebookId: z.string().min(1).max(64).nullable().optional(),
+  tags: tagsSchema.optional(),
   isPinned: z.boolean().optional(),
 })
 
 const updateSchema = createSchema.partial()
 
 const paramSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(64),
+})
+
+const searchQuerySchema = z.object({
+  q: z.string().trim().min(1).max(200),
 })
 
 export const notesRoute = new Hono<{ Variables: AuthVariables }>()
+  .get('/search', zValidator('query', searchQuerySchema), async (c) => {
+    const user = c.get('user')
+    const { q } = c.req.valid('query')
+
+    // websearch_to_tsquery tolerates raw user input (quotes, AND/OR, dashes)
+    // without throwing — to_tsquery would error on most natural-language input.
+    const tsq = sql`websearch_to_tsquery('english', ${q})`
+    const rows = await db
+      .select()
+      .from(notes)
+      .where(sql`
+        ${notes.userId} = ${user.id}
+        AND ${notes.trashedAt} IS NULL
+        AND ${notes}.fts @@ ${tsq}
+      `)
+      .orderBy(sql`ts_rank(${notes}.fts, ${tsq}) DESC`, desc(notes.updatedAt))
+      .limit(50)
+    return c.json(rows)
+  })
   .get('/', zValidator('query', listQuerySchema), async (c) => {
     const user = c.get('user')
     const q = c.req.valid('query')
@@ -56,8 +119,9 @@ export const notesRoute = new Hono<{ Variables: AuthVariables }>()
       .values({
         userId: user.id,
         ...(body.title !== undefined ? { title: body.title } : {}),
-        ...(body.bodyJson !== undefined ? { bodyJson: body.bodyJson } : {}),
-        ...(body.bodyText !== undefined ? { bodyText: body.bodyText } : {}),
+        ...(body.bodyJson !== undefined
+          ? { bodyJson: body.bodyJson.json, bodyText: body.bodyJson.text }
+          : {}),
         ...(body.notebookId !== undefined ? { notebookId: body.notebookId } : {}),
         ...(body.tags !== undefined ? { tags: body.tags } : {}),
         ...(body.isPinned !== undefined ? { isPinned: body.isPinned } : {}),
@@ -84,8 +148,9 @@ export const notesRoute = new Hono<{ Variables: AuthVariables }>()
       .update(notes)
       .set({
         ...(body.title !== undefined ? { title: body.title } : {}),
-        ...(body.bodyJson !== undefined ? { bodyJson: body.bodyJson } : {}),
-        ...(body.bodyText !== undefined ? { bodyText: body.bodyText } : {}),
+        ...(body.bodyJson !== undefined
+          ? { bodyJson: body.bodyJson.json, bodyText: body.bodyJson.text }
+          : {}),
         ...(body.notebookId !== undefined ? { notebookId: body.notebookId } : {}),
         ...(body.tags !== undefined ? { tags: body.tags } : {}),
         ...(body.isPinned !== undefined ? { isPinned: body.isPinned } : {}),

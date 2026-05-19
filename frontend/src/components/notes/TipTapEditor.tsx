@@ -81,7 +81,7 @@ export function TipTapEditor({ bodyJson, bodyText, editable, onChange, placehold
 function Toolbar({ editor }: { editor: Editor }) {
   const btn = (active: boolean, disabled: boolean) =>
     cn(
-      'inline-flex h-7 w-7 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent',
+      'inline-flex h-9 w-9 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent md:h-7 md:w-7',
       active && 'bg-muted text-foreground',
       disabled && 'cursor-not-allowed',
     )
