@@ -9,7 +9,7 @@ import { MAX_BODY_JSON_INPUT_BYTES, sanitizeTipTapJson } from '../lib/sanitize'
 
 const boolFlag = z.enum(['true', 'false']).optional()
 
-const listQuerySchema = z.object({
+export const listQuerySchema = z.object({
   notebookId: z.string().min(1).max(64).optional(),
   tag: z.string().trim().min(1).max(32).optional(),
   trashed: boolFlag,
@@ -26,7 +26,7 @@ const tagSchema = z
   .max(32)
   .transform((s) => s.toLowerCase())
 
-const tagsSchema = z
+export const tagsSchema = z
   .array(tagSchema)
   .max(20)
   .transform((arr) => Array.from(new Set(arr)))
@@ -34,7 +34,7 @@ const tagsSchema = z
 // Parse + sanitize TipTap JSON inline. The transform yields both the
 // re-serialized JSON and the derived plaintext, so route handlers can drop
 // the client-supplied bodyText entirely.
-const bodyJsonSchema = z
+export const bodyJsonSchema = z
   .string()
   .max(MAX_BODY_JSON_INPUT_BYTES, 'bodyJson too large')
   .transform((s, ctx) => {
