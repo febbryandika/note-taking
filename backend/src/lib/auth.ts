@@ -36,7 +36,7 @@ export const auth = betterAuth({
   // Built-in rate limit on auth endpoints. Our /api/auth/* middleware also
   // limits by IP — keeping both is cheap and gives us defense in depth.
   rateLimit: {
-    enabled: true,
+    enabled: process.env.NODE_ENV !== 'test',
     window: 60,
     max: 20,
   },

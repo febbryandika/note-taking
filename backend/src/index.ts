@@ -19,7 +19,7 @@ const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5177'
 // on it without trusting an X-Forwarded-For we never wrote.
 type Bindings = { ip: string | null }
 
-const app = new Hono<{ Bindings: Bindings }>()
+export const app = new Hono<{ Bindings: Bindings }>()
 
 const onBodyLimit = (c: Parameters<typeof errorResponse>[0]) =>
   errorResponse(c, 'PAYLOAD_TOO_LARGE', 'Request body too large')

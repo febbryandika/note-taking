@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --watch src/index.ts",
+    "test": "bun test --preload ./tests/setup.ts",
+    "test:integration": "bun test --preload ./tests/setup.ts tests/integration",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
