@@ -5,6 +5,11 @@
   "scripts": {
     "dev": "bun run --concurrent dev:backend dev:frontend",
     "dev:backend": "cd backend && bun run dev",
-    "dev:frontend": "cd frontend && bun run dev"
+    "dev:frontend": "cd frontend && bun run dev",
+    "test": "bun run --filter '*' test",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
   }
 }
