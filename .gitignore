@@ -75,3 +75,8 @@ CLAUDE.md
 
 # Local tooling
 .claude/
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/

@@ -5,6 +5,7 @@ import { neon } from '@neondatabase/serverless'
 import { drizzle } from 'drizzle-orm/neon-http'
 import { migrate } from 'drizzle-orm/neon-http/migrator'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const testUrl = process.env.TEST_DATABASE_URL
 if (!testUrl) {
@@ -21,7 +22,10 @@ if (testUrl === process.env.DATABASE_URL) {
 process.env.DATABASE_URL = testUrl
 process.env.NODE_ENV = 'test'
 
-const migrationsFolder = path.resolve(import.meta.dir, '../drizzle')
+// `import.meta.dir` is Bun-only; Playwright's global-setup runs in Node, so
+// derive the dir from `import.meta.url` for cross-runtime compatibility.
+const here = path.dirname(fileURLToPath(import.meta.url))
+const migrationsFolder = path.resolve(here, '../drizzle')
 const migrationDb = drizzle(neon(testUrl))
 
 try {

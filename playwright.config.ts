@@ -40,14 +40,25 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
-  webServer: {
-    command: 'bun run dev',
-    url: FRONTEND_URL,
-    reuseExistingServer: false,
-    timeout: 60_000,
-    env: {
-      DATABASE_URL: process.env.TEST_DATABASE_URL!,
-      NODE_ENV: 'test',
+  webServer: [
+    {
+      command: 'cd backend && bun run dev',
+      url: 'http://localhost:3000/api/health',
+      reuseExistingServer: false,
+      timeout: 60_000,
+      env: {
+        DATABASE_URL: process.env.TEST_DATABASE_URL!,
+        NODE_ENV: 'test',
+      },
     },
-  },
+    {
+      command: 'cd frontend && bun run dev -- --port 5177 --strictPort',
+      url: FRONTEND_URL,
+      reuseExistingServer: false,
+      timeout: 60_000,
+      env: {
+        NODE_ENV: 'test',
+      },
+    },
+  ],
 })
