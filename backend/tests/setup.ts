@@ -2,7 +2,8 @@
 // Must execute BEFORE any module that reads DATABASE_URL is imported.
 
 import { neon } from '@neondatabase/serverless'
-import { readdir, readFile } from 'node:fs/promises'
+import { drizzle } from 'drizzle-orm/neon-http'
+import { migrate } from 'drizzle-orm/neon-http/migrator'
 import path from 'node:path'
 
 const testUrl = process.env.TEST_DATABASE_URL
@@ -15,32 +16,17 @@ if (testUrl === process.env.DATABASE_URL) {
   )
 }
 
-// Swap the env so every module that lazily reads DATABASE_URL gets the test branch.
+// Swap the env so every module that lazily reads DATABASE_URL gets the test
+// branch. NODE_ENV='test' also gates better-auth's built-in rate limit.
 process.env.DATABASE_URL = testUrl
 process.env.NODE_ENV = 'test'
 
-const sql = neon(testUrl)
-const migrationsDir = path.resolve(import.meta.dir, '../drizzle')
+const migrationsFolder = path.resolve(import.meta.dir, '../drizzle')
+const migrationDb = drizzle(neon(testUrl))
 
-const files = (await readdir(migrationsDir))
-  .filter((f) => f.endsWith('.sql'))
-  .sort()
-
-for (const file of files) {
-  const raw = await readFile(path.join(migrationsDir, file), 'utf8')
-  // drizzle-kit emits statements separated by `--> statement-breakpoint`.
-  const statements = raw
-    .split('--> statement-breakpoint')
-    .map((s) => s.trim())
-    .filter(Boolean)
-  for (const stmt of statements) {
-    try {
-      await sql(stmt)
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      // Re-running migrations on an already-prepared DB is fine — swallow
-      // "already exists" so the suite is idempotent across local runs.
-      if (!/already exists|duplicate/i.test(msg)) throw e
-    }
-  }
+try {
+  await migrate(migrationDb, { migrationsFolder })
+} catch (e) {
+  console.error('[test setup] migration failed:', e)
+  throw e
 }

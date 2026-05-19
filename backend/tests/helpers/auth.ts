@@ -46,11 +46,10 @@ export async function signIn(email: string, password: string): Promise<AuthedCli
 }
 
 // Convenience for the test that needs both an auth cookie and a fresh user.
-let counter = 0
 export async function freshUser(): Promise<AuthedClient> {
-  counter += 1
-  const email = `user-${Date.now()}-${counter}@test.local`
-  return signUp(email, 'password123', `user${counter}`)
+  const id = crypto.randomUUID().slice(0, 8)
+  const email = `user-${id}@test.local`
+  return signUp(email, 'password123', `user${id}`)
 }
 
 // Build a Hono-compatible request with the session cookie attached.
