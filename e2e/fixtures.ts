@@ -21,7 +21,7 @@ export const test = base.extend<{ authedUser: Authed; authedPage: typeof base.ex
 
     const res = await fetch('http://localhost:3000/api/auth/sign-up/email', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', origin: 'http://localhost:5177' },
+      headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
       body: JSON.stringify({ email, password, name }),
     })
     if (!res.ok) throw new Error(`sign-up failed: ${res.status} ${await res.text()}`)

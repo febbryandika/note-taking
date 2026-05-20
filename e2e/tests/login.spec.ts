@@ -36,7 +36,7 @@ test('wrong password keeps user on /login and shows an error', async ({ page }) 
   const email = `bad-${Date.now()}@test.local`
   await fetch('http://localhost:3000/api/auth/sign-up/email', {
     method: 'POST',
-    headers: { 'content-type': 'application/json', origin: 'http://localhost:5177' },
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
     body: JSON.stringify({ email, password: 'password123', name: 'Bad' }),
   })
 

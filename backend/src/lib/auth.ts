@@ -22,7 +22,7 @@ export const auth = betterAuth({
     minPasswordLength: 8,
     maxPasswordLength: 128,
   },
-  trustedOrigins: [process.env.FRONTEND_URL ?? 'http://localhost:5177'],
+  trustedOrigins: [process.env.FRONTEND_URL ?? 'http://localhost:5173'],
   advanced: {
     // Force the `Secure` cookie flag in production. In dev (http://localhost)
     // browsers reject Secure cookies, so leave it off there.

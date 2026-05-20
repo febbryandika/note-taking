@@ -13,8 +13,8 @@ export const testDb = drizzle(sql, { schema })
 // CASCADE handles dependent rows (sessions, accounts, notebooks, notes).
 function tableNames(): string[] {
   return Object.values(schema)
-    .filter((v): v is Table => typeof v === 'object' && v !== null && Symbol.for('drizzle:Name') in (v as object))
-    .map((t) => getTableName(t))
+    .filter((v) => typeof v === 'object' && v !== null && Symbol.for('drizzle:Name') in (v as object))
+    .map((t) => getTableName(t as Table))
 }
 
 export async function resetDb() {

@@ -1,6 +1,6 @@
 import { app } from '../../src/index'
 
-const ORIGIN = 'http://localhost:5177'
+const ORIGIN = 'http://localhost:5173'
 
 export type AuthedClient = {
   user: { id: string; email: string; name: string }

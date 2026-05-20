@@ -15,7 +15,7 @@ async function makeNoteViaApi(cookieHeader: string, title: string): Promise<stri
     headers: {
       'content-type': 'application/json',
       cookie: cookieHeader,
-      origin: 'http://localhost:5177',
+      origin: 'http://localhost:5173',
     },
     body: JSON.stringify({ title }),
   })

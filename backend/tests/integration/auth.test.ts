@@ -5,7 +5,7 @@ import { app } from '../../src/index'
 import { apiRequest, freshUser, signIn, signUp } from '../helpers/auth'
 import { resetDb, testDb } from '../helpers/db'
 
-const ORIGIN = 'http://localhost:5177'
+const ORIGIN = 'http://localhost:5173'
 
 beforeEach(async () => {
   await resetDb()

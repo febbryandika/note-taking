@@ -1,6 +1,6 @@
 # Notes
 
-A personal, full-stack note-taking app — rich-text editor with auto-save, notebooks, tags, full-text search, pinning, and a soft-delete trash. Built as a Bun-workspace monorepo with end-to-end type safety from PostgreSQL all the way to the React client.
+A personal, full-stack note-taking app — rich-text editor with auto-save, notebooks, tags, full-text search, pinning, and soft-delete trash. Built as a Bun-workspace monorepo with end-to-end type safety from PostgreSQL all the way to the React client.
 
 > The full product contract lives in [`SPEC.MD`](./SPEC.MD). This README documents how to run, develop, and reason about the codebase.
 
@@ -28,7 +28,7 @@ A personal, full-stack note-taking app — rich-text editor with auto-save, note
 
 ## Features
 
-- **Authentication** — email + password via [better-auth](https://www.better-auth.com/), HttpOnly session cookies, CSRF protection, per-IP and per-user rate limits.
+- **Authentication** — email and password via [better-auth](https://www.better-auth.com/), HttpOnly session cookies, CSRF protection, per-IP and per-user rate limits.
 - **Rich-text editor** — [TipTap](https://tiptap.dev/) with debounced auto-save (1s after the last keystroke).
 - **Notebooks** — create, rename, delete; delete is blocked while non-trashed notes still belong to the notebook.
 - **Tags** — stored as a PostgreSQL `text[]`; sidebar tag cloud with counts; click to filter.
@@ -47,7 +47,7 @@ A personal, full-stack note-taking app — rich-text editor with auto-save, note
 
 **Frontend** React 19 · Vite 6 · TanStack Router (file-based) · TanStack Query · TailwindCSS 4 · TipTap 3 · Base UI · shadcn/ui
 
-**Testing** Bun test runner (unit + integration) · Playwright (E2E)
+**Testing** Bun test runner (unit and integration) · Playwright (E2E)
 
 ---
 
@@ -142,7 +142,7 @@ note-taking-app/
 
 - **[Bun](https://bun.sh/)** ≥ 1.1
 - A **PostgreSQL** database. The dev defaults target [Neon](https://neon.tech/) (serverless Postgres over HTTP). Any Postgres 14+ instance works.
-- Optionally a separate **test database** for integration / E2E.
+- Optionally, a separate **test database** for integration / E2E.
 
 ---
 
@@ -176,24 +176,23 @@ The backend listens on `http://localhost:3000` and the frontend on `http://local
 
 ### `backend/.env`
 
-| Variable               | Required | Default                  | Description                                                            |
-| ---------------------- | -------- | ------------------------ | ---------------------------------------------------------------------- |
-| `DATABASE_URL`         | yes      | —                        | Neon / Postgres connection string. Read at import time.                |
-| `BETTER_AUTH_SECRET`   | yes      | —                        | Random 32+ byte secret. Generate with `openssl rand -base64 32`.       |
-| `BETTER_AUTH_URL`      | yes      | `http://localhost:3000`  | Public URL of the API.                                                 |
-| `FRONTEND_URL`         | no       | `http://localhost:5177`* | Used for CORS `origin`, CSRF allowlist, and better-auth trustedOrigins. |
-| `PORT`                 | no       | `3000`                   | Backend HTTP port.                                                     |
-| `TEST_DATABASE_URL`    | tests    | —                        | Separate database for integration + E2E tests.                         |
-| `SLOW_QUERY_MS`        | no       | `100`                    | Queries above this are logged at WARN.                                 |
-| `LOG_LEVEL`            | no       | `info`                   | Pino log level.                                                        |
+| Variable             | Required | Default                 | Description                                                             |
+|----------------------|----------|-------------------------|-------------------------------------------------------------------------|
+| `DATABASE_URL`       | yes      | —                       | Neon / Postgres connection string. Read at import time.                 |
+| `BETTER_AUTH_SECRET` | yes      | —                       | Random 32+ byte secret. Generate with `openssl rand -base64 32`.        |
+| `BETTER_AUTH_URL`    | yes      | `http://localhost:3000` | Public URL of the API.                                                  |
+| `FRONTEND_URL`       | no       | `http://localhost:5173` | Used for CORS `origin`, CSRF allowlist, and better-auth trustedOrigins. |
+| `PORT`               | no       | `3000`                  | Backend HTTP port.                                                      |
+| `TEST_DATABASE_URL`  | tests    | —                       | Separate database for integration + E2E tests.                          |
+| `SLOW_QUERY_MS`      | no       | `100`                   | Queries above this are logged at WARN.                                  |
+| `LOG_LEVEL`          | no       | `info`                  | Pino log level.                                                         |
 
-\* The default in code is `5177` (used by Playwright); the `.env.example` ships `5173` for normal dev. Set this explicitly whenever the frontend runs on a non-default port.
 
 ### `frontend/.env`
 
-| Variable        | Default                 | Description                                       |
-| --------------- | ----------------------- | ------------------------------------------------- |
-| `VITE_API_URL`  | `http://localhost:3000` | Used by both the RPC client and the auth client.  |
+| Variable       | Default                 | Description                                      |
+|----------------|-------------------------|--------------------------------------------------|
+| `VITE_API_URL` | `http://localhost:3000` | Used by both the RPC client and the auth client. |
 
 ---
 
@@ -220,7 +219,7 @@ bun run db:studio      # open Drizzle Studio
 
 ### Full-text search
 
-`drizzle-kit` does not model generated columns, so the FTS index is a **hand-written** raw SQL migration (`backend/drizzle/0001_add_fts.sql`):
+`drizzle-kit` does not model generated columns, so the FTS index is a **handwritten** raw SQL migration (`backend/drizzle/0001_add_fts.sql`):
 
 ```sql
 ALTER TABLE "notes" ADD COLUMN "fts" tsvector
@@ -267,61 +266,61 @@ All routes are prefixed with `/api`. Everything except `/api/auth/**` and `/api/
 
 **Auth** (handled by better-auth — see [docs](https://www.better-auth.com/docs))
 
-| Method | Path                       | Notes                                   |
-| ------ | -------------------------- | --------------------------------------- |
-| POST   | `/api/auth/sign-up/email`  | 16 KB body limit, 10 req/min/IP         |
-| POST   | `/api/auth/sign-in/email`  |                                         |
-| POST   | `/api/auth/sign-out`       |                                         |
-| GET    | `/api/auth/get-session`    | Called on every page load — not throttled |
+| Method | Path                      | Notes                                     |
+|--------|---------------------------|-------------------------------------------|
+| POST   | `/api/auth/sign-up/email` | 16 KB body limit, 10 req/min/IP           |
+| POST   | `/api/auth/sign-in/email` |                                           |
+| POST   | `/api/auth/sign-out`      |                                           |
+| GET    | `/api/auth/get-session`   | Called on every page load — not throttled |
 
 **Health**
 
-| Method | Path           |
-| ------ | -------------- |
-| GET    | `/api/health`  |
+| Method | Path          |
+|--------|---------------|
+| GET    | `/api/health` |
 
 **Current user**
 
-| Method | Path        | Description                       |
-| ------ | ----------- | --------------------------------- |
-| GET    | `/api/me`   | Returns the authenticated user.   |
+| Method | Path      | Description                     |
+|--------|-----------|---------------------------------|
+| GET    | `/api/me` | Returns the authenticated user. |
 
 **Notes**
 
-| Method | Path                              | Description                                                         |
-| ------ | --------------------------------- | ------------------------------------------------------------------- |
-| GET    | `/api/notes`                      | List. Query: `notebookId?`, `tag?`, `trashed?`, `pinned?`           |
-| POST   | `/api/notes`                      | Create. Body validated by Zod; TipTap JSON sanitized server-side.   |
-| GET    | `/api/notes/:id`                  | Get one (excludes trashed).                                          |
-| PUT    | `/api/notes/:id`                  | Update. `bodyText` is re-derived from `bodyJson` server-side.       |
-| DELETE | `/api/notes/:id`                  | Soft delete (sets `trashedAt`).                                      |
-| POST   | `/api/notes/:id/restore`          | Clear `trashedAt`.                                                   |
-| DELETE | `/api/notes/:id/permanent`        | Hard delete — only succeeds if `trashedAt IS NOT NULL`.              |
-| GET    | `/api/notes/search`               | FTS via `websearch_to_tsquery`. Query: `q` (required, 1–200 chars). |
+| Method | Path                       | Description                                                         |
+|--------|----------------------------|---------------------------------------------------------------------|
+| GET    | `/api/notes`               | List. Query: `notebookId?`, `tag?`, `trashed?`, `pinned?`           |
+| POST   | `/api/notes`               | Create. Body validated by Zod; TipTap JSON sanitized server-side.   |
+| GET    | `/api/notes/:id`           | Get one (excludes trashed).                                         |
+| PUT    | `/api/notes/:id`           | Update. `bodyText` is re-derived from `bodyJson` server-side.       |
+| DELETE | `/api/notes/:id`           | Soft delete (sets `trashedAt`).                                     |
+| POST   | `/api/notes/:id/restore`   | Clear `trashedAt`.                                                  |
+| DELETE | `/api/notes/:id/permanent` | Hard delete — only succeeds if `trashedAt IS NOT NULL`.             |
+| GET    | `/api/notes/search`        | FTS via `websearch_to_tsquery`. Query: `q` (required, 1–200 chars). |
 
 **Notebooks**
 
-| Method | Path                       | Description                                                            |
-| ------ | -------------------------- | ---------------------------------------------------------------------- |
-| GET    | `/api/notebooks`           |                                                                        |
-| POST   | `/api/notebooks`           | Body: `{ name: string }` (1–100 chars).                                |
-| PUT    | `/api/notebooks/:id`       | Rename.                                                                |
-| DELETE | `/api/notebooks/:id`       | 409 if the notebook still owns any non-trashed notes.                  |
+| Method | Path                 | Description                                           |
+|--------|----------------------|-------------------------------------------------------|
+| GET    | `/api/notebooks`     |                                                       |
+| POST   | `/api/notebooks`     | Body: `{ name: string }` (1–100 chars).               |
+| PUT    | `/api/notebooks/:id` | Rename.                                               |
+| DELETE | `/api/notebooks/:id` | 409 if the notebook still owns any non-trashed notes. |
 
 **Tags**
 
-| Method | Path         | Description                                          |
-| ------ | ------------ | ---------------------------------------------------- |
-| GET    | `/api/tags`  | Unique tags with counts, ordered by count then name. |
+| Method | Path        | Description                                          |
+|--------|-------------|------------------------------------------------------|
+| GET    | `/api/tags` | Unique tags with counts, ordered by count then name. |
 
 ### Rate limits (in-memory token bucket, per-user unless noted)
 
-| Bucket   | Limit                 | Window | Notes                                              |
-| -------- | --------------------- | ------ | -------------------------------------------------- |
-| `auth`   | 10 / IP               | 60s    | Only on POSTs to `/api/auth/*`.                    |
-| `read`   | 300 / user            | 60s    | All authenticated GETs.                            |
-| `mutate` | 120 / user            | 60s    | POST/PUT/PATCH/DELETE — covers 1s auto-save.       |
-| `search` | 30 / user             | 60s    | Only on `/api/notes/search`.                       |
+| Bucket   | Limit      | Window | Notes                                        |
+|----------|------------|--------|----------------------------------------------|
+| `auth`   | 10 / IP    | 60s    | Only on POSTs to `/api/auth/*`.              |
+| `read`   | 300 / user | 60s    | All authenticated GETs.                      |
+| `mutate` | 120 / user | 60s    | POST/PUT/PATCH/DELETE — covers 1s auto-save. |
+| `search` | 30 / user  | 60s    | Only on `/api/notes/search`.                 |
 
 Every rate-limited response carries `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, and on 429 a `Retry-After` header.
 
@@ -347,13 +346,13 @@ Always go through the RPC client — direct `fetch('/api/...')` bypasses inferen
 
 ## Frontend Routes
 
-| Path              | Description                                                                 |
-| ----------------- | --------------------------------------------------------------------------- |
-| `/login`          | Email + password sign-in.                                                   |
-| `/register`       | Account creation.                                                           |
-| `/notes`          | Three-panel layout — `NotebookSidebar` + `NoteList` (with `SearchBar`) + `NoteEditor`. |
-| `/notes/$noteId`  | Same layout, with the selected note loaded into the editor.                 |
-| `/trash`          | Trashed notes — restore or permanently delete.                              |
+| Path             | Description                                                                            |
+|------------------|----------------------------------------------------------------------------------------|
+| `/login`         | Email + password sign-in.                                                              |
+| `/register`      | Account creation.                                                                      |
+| `/notes`         | Three-panel layout — `NotebookSidebar` + `NoteList` (with `SearchBar`) + `NoteEditor`. |
+| `/notes/$noteId` | Same layout, with the selected note loaded into the editor.                            |
+| `/trash`         | Trashed notes — restore or permanently delete.                                         |
 
 The router context is initialized with `{ queryClient }` in `main.tsx`, so loaders and components pull the `QueryClient` via `Route.useRouteContext()` instead of importing a singleton.
 
@@ -384,7 +383,7 @@ Hits a real Postgres database — set `TEST_DATABASE_URL` in `backend/.env` firs
 bun run test:e2e            # Playwright
 ```
 
-`playwright.config.ts` boots both servers itself (backend with `DATABASE_URL=$TEST_DATABASE_URL`, frontend on `:5177`) and runs against headless Chromium. The current suite covers:
+`playwright.config.ts` boots both servers itself (backend with `DATABASE_URL=$TEST_DATABASE_URL`, frontend on `:5173`) and runs against headless Chromium. The current suite covers:
 
 - `login.spec.ts` — register, sign out, sign in, wrong-password error.
 - `create-note.spec.ts` — create a note and verify persistence after reload.
@@ -400,7 +399,7 @@ Defenses in place — keep them when you extend the codebase.
 
 - **Auth ownership.** Every domain query is scoped by `userId` (`and(eq(notes.userId, user.id), ...)`). Drizzle makes the join explicit so it's reviewable in diffs.
 - **Cookies.** `httpOnly`, `sameSite=lax`. `secure` is on in production and off in dev (browsers reject `Secure` over `http://localhost`).
-- **CSRF.** Hono's `csrf({ origin: FRONTEND_URL })` rejects non-safe methods whose `Origin` doesn't match. Same-site cookies are the primary defense; this is belt-and-suspenders.
+- **CSRF.** Hono's `csrf({ origin: FRONTEND_URL })` rejects non-safe methods whose `Origin` doesn't match. Same-site cookies are the primary defense; this is belted-and-suspenders.
 - **CORS.** Allowlisted to `FRONTEND_URL` with `credentials: true`. No wildcard.
 - **Security headers.** Applied to every response via `lib/securityHeaders.ts`.
 - **Body limits.** 16 KB on `/api/auth/*`, 1 MB on the protected API.
@@ -431,5 +430,5 @@ A few project-specific rules — read `CLAUDE.md` for the full set.
 - **Never bypass the RPC client.** Frontend network calls go through `client.api.*.$get/$post/...` wrapped in TanStack Query hooks — no raw `fetch` to `/api`.
 - **TanStack Router is file-based.** Don't hand-edit `frontend/src/routeTree.gen.ts` — the `TanStackRouterVite` plugin regenerates it from files in `src/routes/`.
 - **Path aliases.** Frontend uses `@/*` → `frontend/src/*`. The RPC import is intentionally relative (`../../../backend/src/index`) so `AppType` is inferred from source, not from a compiled artifact.
-- **Migrations.** Use `db:generate` to diff `schema.ts`. The FTS column is a hand-written migration — never overwrite it.
+- **Migrations.** Use `db:generate` to diff `schema.ts`. The FTS column is a handwritten migration — never overwrite it.
 - **Surgical changes.** Touch only what the task requires. Match existing style. See `CLAUDE.md` for the full philosophy.

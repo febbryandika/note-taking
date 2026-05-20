@@ -22,7 +22,7 @@ if (!process.env.TEST_DATABASE_URL) {
   )
 }
 
-const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5177'
+const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
 
 export default defineConfig({
   testDir: 'e2e/tests',
@@ -52,7 +52,7 @@ export default defineConfig({
       },
     },
     {
-      command: 'cd frontend && bun run dev -- --port 5177 --strictPort',
+      command: 'cd frontend && bun run dev -- --port 5173 --strictPort',
       url: FRONTEND_URL,
       reuseExistingServer: false,
       timeout: 60_000,

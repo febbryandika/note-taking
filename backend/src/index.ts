@@ -13,7 +13,7 @@ import { notebooksRoute } from './routes/notebooks'
 import { notesRoute } from './routes/notes'
 import { tagsRoute } from './routes/tags'
 
-const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5177'
+const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
 
 // Surface the connection-level IP from Bun.serve so the rate limiter can key
 // on it without trusting an X-Forwarded-For we never wrote.
