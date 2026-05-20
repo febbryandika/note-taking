@@ -17,10 +17,10 @@ export const Route = createFileRoute('/notes/$noteId')({
       },
     }),
   pendingComponent: () => (
-    <div className="space-y-3">
-      <Skeleton className="h-8 w-2/3" />
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-64 w-full" />
+    <div className="mx-auto max-w-[720px] space-y-3 px-7 py-12">
+      <Skeleton className="h-8 w-2/3 bg-paper-soft" />
+      <Skeleton className="h-4 w-full bg-paper-soft" />
+      <Skeleton className="h-64 w-full bg-paper-soft" />
     </div>
   ),
   errorComponent: NoteNotFoundRedirect,

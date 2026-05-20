@@ -65,36 +65,57 @@ function NotesLayout() {
 
   if (!isDesktop) {
     return (
-      <>
+      <div className="min-h-screen bg-paper font-display text-ink">
         <Drawer open={drawerOpen} onClose={closeDrawer} ariaLabel="Notebooks and tags">
-          <NotebookSidebar {...sidebarProps} onNavigate={closeDrawer} />
+          <div className="flex h-full flex-col bg-paper">
+            <NotebookSidebar {...sidebarProps} onNavigate={closeDrawer} />
+          </div>
         </Drawer>
-        <div className="h-[calc(100dvh-7rem)] overflow-y-auto">
+        <div className="h-[100dvh] overflow-y-auto">
           {isOnDetail ? <Outlet /> : <NoteList onOpenSidebar={() => setDrawerOpen(true)} />}
         </div>
-      </>
+      </div>
     )
   }
 
   return (
-    <div
-      className={`grid h-[calc(100vh-8rem)] gap-4 ${
-        isOnDetail ? 'grid-cols-[220px_320px_1fr]' : 'grid-cols-[220px_1fr]'
-      }`}
-    >
-      <aside className="overflow-y-auto border-r border-border pr-2">
-        <NotebookSidebar {...sidebarProps} />
-      </aside>
-      <section
-        className={`overflow-y-auto ${isOnDetail ? 'border-r border-border pr-2' : ''}`}
-      >
-        <NoteList />
-      </section>
-      {isOnDetail && (
-        <section className="overflow-y-auto px-2">
+    <div className="grid h-screen min-h-0 grid-cols-[260px_380px_1fr] bg-paper font-display text-[15px] leading-[1.55] tracking-[-0.005em] text-ink min-[1100px]:grid-cols-[260px_380px_1fr] max-[1100px]:grid-cols-[240px_340px_1fr]">
+      <NotebookSidebar {...sidebarProps} />
+      <NoteList />
+      <section className="flex min-h-0 flex-col bg-paper-surface">
+        {isOnDetail ? (
           <Outlet />
-        </section>
-      )}
+        ) : (
+          <EmptyEditor />
+        )}
+      </section>
+    </div>
+  )
+}
+
+function EmptyEditor() {
+  return (
+    <div className="grid h-full place-items-center px-8 text-center text-ink-faint">
+      <div>
+        <div className="mx-auto mb-3.5 grid h-14 w-14 place-items-center rounded-2xl bg-paper-soft text-ink-muted">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
+            <path d="M14 3v6h6" />
+          </svg>
+        </div>
+        <div className="text-[16px] font-semibold text-ink">Pick a note</div>
+        <p className="text-[13.5px]">Select a note from the list, or press ⌘N to start a new one.</p>
+      </div>
     </div>
   )
 }

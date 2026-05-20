@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearch } from '@tanstack/react-router'
-import { AlertCircle, ArrowLeft, Check, Loader2, Pencil, Star, Trash2 } from 'lucide-react'
 import { useNotebooks } from '@/hooks/useNotebooks'
 import { useDeleteNote, useNote, useUpdateNote } from '@/hooks/useNotes'
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut'
@@ -43,15 +42,10 @@ export function NoteEditor({ noteId }: { noteId: string }) {
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [saveError, setSaveError] = useState<string | null>(null)
-  // versionRef increments on every user edit so the auto-save effect can
-  // detect changes that happened mid-flight and avoid clearing dirty state.
   const versionRef = useRef(0)
 
   useEffect(() => {
     if (!note.data) return
-    // Skip re-hydration while the user has unsaved local changes. After a
-    // successful save the cache reflects what we just sent, so re-hydrating
-    // is a no-op visually but keeps server-normalized fields authoritative.
     if (saveStatus === 'pending' || saveStatus === 'saving' || saveStatus === 'error') return
     setTitle(note.data.title)
     setBodyJson(note.data.bodyJson)
@@ -79,8 +73,6 @@ export function NoteEditor({ noteId }: { noteId: string }) {
         tags,
         isPinned,
       })
-      // If the user typed during the save, leave status as pending so the
-      // auto-save effect schedules another round.
       if (versionAtSave === versionRef.current) {
         setSaveStatus('saved')
         setSaveError(null)
@@ -94,19 +86,15 @@ export function NoteEditor({ noteId }: { noteId: string }) {
     }
   }
 
-  // Debounced auto-save: any edit cancels the previous timer and arms a new one.
   useEffect(() => {
     if (saveStatus !== 'pending') return
     const timer = setTimeout(() => {
-      performSave().catch(() => {
-        // Error state already captured in performSave.
-      })
+      performSave().catch(() => {})
     }, AUTOSAVE_DELAY_MS)
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [saveStatus, title, bodyJson, bodyText, notebookId, tags, isPinned])
 
-  // Cmd/Ctrl+S — flush save immediately when in edit mode.
   useKeyboardShortcut(
     { key: 's', mod: true },
     async (e) => {
@@ -121,15 +109,12 @@ export function NoteEditor({ noteId }: { noteId: string }) {
         await performSave()
         toast.success('Saved')
       } catch {
-        // error state captured in performSave; SaveIndicator shows it
+        // captured
       }
     },
     { allowInInputs: true, enabled: mode === 'edit' },
   )
 
-  // Flush pending edits if the editor unmounts (e.g., user clicks another
-  // note in the list while a debounced save is still queued). Uses a ref
-  // so the cleanup always sees the latest local state.
   const flushRef = useRef({ title, bodyJson, notebookId, tags, isPinned, saveStatus })
   flushRef.current = { title, bodyJson, notebookId, tags, isPinned, saveStatus }
   useEffect(() => {
@@ -156,23 +141,20 @@ export function NoteEditor({ noteId }: { noteId: string }) {
 
   if (!note.data) {
     return (
-      <div className="space-y-3">
-        <Skeleton className="h-8 w-2/3" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-64 w-full" />
+      <div className="mx-auto max-w-[720px] space-y-4 px-8 py-12">
+        <Skeleton className="h-8 w-2/3 bg-paper-soft" />
+        <Skeleton className="h-4 w-full bg-paper-soft" />
+        <Skeleton className="h-64 w-full bg-paper-soft" />
       </div>
     )
   }
 
   async function handleDone() {
-    // Flush any pending or failed save before exiting edit mode so the
-    // read view sees the latest content immediately instead of waiting on
-    // the debounce timer.
     if (saveStatus === 'pending' || saveStatus === 'error') {
       try {
         await performSave()
       } catch {
-        return // stay in edit mode if the flush fails
+        return
       }
     }
     setMode('read')
@@ -184,18 +166,6 @@ export function NoteEditor({ noteId }: { noteId: string }) {
     } catch {
       // already captured
     }
-  }
-
-  async function handleBack() {
-    // Flush before unmounting so a pending debounced save isn't lost.
-    if (saveStatus === 'pending' || saveStatus === 'error') {
-      try {
-        await performSave()
-      } catch {
-        return
-      }
-    }
-    navigate({ to: '/notes', search: (prev) => prev })
   }
 
   async function handleTrash() {
@@ -218,199 +188,186 @@ export function NoteEditor({ noteId }: { noteId: string }) {
     }
   }
 
-  if (mode === 'read') {
-    const notebook = notebooks.data?.find((nb) => nb.id === note.data!.notebookId)
-    return (
-      <div className="mx-auto max-w-3xl space-y-4">
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="-ml-2 inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-foreground hover:bg-muted md:hidden"
-            aria-label="Back to notes"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </button>
-          <span className="ml-auto">Updated {new Date(note.data.updatedAt).toLocaleString()}</span>
-          <button
-            type="button"
-            onClick={handleTogglePin}
-            disabled={updateNote.isPending}
-            className={`inline-flex items-center gap-1 rounded-md border border-input px-2.5 py-1.5 hover:bg-muted disabled:opacity-50 md:py-1 ${
-              note.data.isPinned ? 'text-yellow-500' : ''
-            }`}
-            aria-label={note.data.isPinned ? 'Unpin' : 'Pin'}
-            aria-pressed={note.data.isPinned}
-            title={note.data.isPinned ? 'Unpin' : 'Pin'}
-          >
-            <Star className="h-3.5 w-3.5" fill={note.data.isPinned ? 'currentColor' : 'none'} />
-            {note.data.isPinned ? 'Pinned' : 'Pin'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('edit')}
-            className="inline-flex items-center gap-1 rounded-md border border-input px-2.5 py-1.5 hover:bg-muted md:py-1"
-            aria-label="Edit"
-            title="Edit"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit
-          </button>
-          <button
-            type="button"
-            onClick={handleTrash}
-            disabled={deleteNote.isPending}
-            className="inline-flex items-center gap-1 rounded-md px-2 py-1.5 hover:text-destructive disabled:opacity-50 md:px-0 md:py-0"
-            aria-label="Move to trash"
-            title="Move to trash"
-          >
-            <Trash2 className="h-4 w-4" />
-            Trash
-          </button>
-        </div>
-
-        <div className="flex items-start gap-2">
-          {note.data.isPinned && (
-            <Star className="mt-1.5 h-5 w-5 shrink-0 text-yellow-500" fill="currentColor" />
-          )}
-          <h1 className="text-2xl font-semibold leading-tight">
-            {note.data.title || 'Untitled'}
-          </h1>
-        </div>
-
-        {(notebook || note.data.tags.length > 0) && (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {notebook && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-foreground/70">
-                {notebook.name}
-              </span>
-            )}
-            {note.data.tags.map((tag) => (
-              <Link
-                key={tag}
-                to="/notes"
-                search={{ tag }}
-                className="rounded-full bg-muted px-2 py-0.5 text-foreground/70 transition-colors hover:bg-muted/70 hover:text-foreground"
-              >
-                #{tag}
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {note.data.bodyText || (note.data.bodyJson && note.data.bodyJson !== '{}') ? (
-          <TipTapEditor
-            key={`read-${note.data.id}-${note.data.updatedAt}`}
-            bodyJson={note.data.bodyJson}
-            bodyText={note.data.bodyText}
-            editable={false}
-          />
-        ) : (
-          <p className="text-sm italic text-muted-foreground">No content yet — click Edit to start writing.</p>
-        )}
-      </div>
-    )
-  }
+  const notebook = notebooks.data?.find((nb) => nb.id === note.data.notebookId)
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
-      <div className="flex flex-wrap items-center gap-3 text-xs">
-        <button
-          type="button"
-          onClick={handleBack}
-          className="-ml-2 inline-flex items-center gap-1 rounded-md px-2 py-1.5 text-foreground hover:bg-muted md:hidden"
-          aria-label="Back to notes"
+    <div className="flex min-h-0 flex-1 flex-col">
+      <header className="flex items-center gap-2.5 border-b border-paper-line bg-paper-surface px-7 py-3.5">
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden whitespace-nowrap text-[13px] text-ink-faint">
+          {notebook && (
+            <>
+              <span className="text-ink-muted">{notebook.name}</span>
+              <span className="opacity-50">/</span>
+            </>
+          )}
+          <span className="min-w-0 flex-1 truncate font-medium text-ink-muted">
+            {note.data.title || 'Untitled'}
+          </span>
+        </div>
+        <SavePill status={saveStatus} error={saveError} onRetry={handleRetry} />
+        <ToolButton
+          onClick={handleTogglePin}
+          disabled={updateNote.isPending}
+          active={note.data.isPinned}
+          aria-label={note.data.isPinned ? 'Unpin' : 'Pin'}
+          title={note.data.isPinned ? 'Unpin' : 'Pin'}
         >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </button>
-        <div className="ml-auto flex items-center gap-3">
-          <SaveIndicator status={saveStatus} error={saveError} onRetry={handleRetry} />
+          <PinIcon filled={note.data.isPinned} />
+          <span>{note.data.isPinned ? 'Pinned' : 'Pin'}</span>
+        </ToolButton>
+        {mode === 'edit' ? (
           <button
             type="button"
             onClick={handleDone}
             disabled={saveStatus === 'saving'}
-            className="inline-flex items-center rounded-md bg-primary px-3 py-1.5 text-primary-foreground hover:bg-primary/90 disabled:opacity-50 md:py-1"
+            className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-ink px-3 py-1.5 text-[13px] font-medium text-paper transition hover:brightness-110 disabled:opacity-60"
           >
             Done
           </button>
+        ) : (
+          <ToolButton onClick={() => setMode('edit')} aria-label="Edit" title="Edit">
+            <PencilIcon />
+            <span>Edit</span>
+          </ToolButton>
+        )}
+        <ToolButton onClick={handleTrash} disabled={deleteNote.isPending} danger aria-label="Move to trash" title="Move to trash">
+          <SmallTrashIcon />
+          <span>Trash</span>
+        </ToolButton>
+      </header>
+
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-paper-line">
+        <div className="mx-auto max-w-[720px] px-7 pb-24 pt-12">
+          {mode === 'edit' ? (
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value)
+                markDirty()
+              }}
+              placeholder="Untitled"
+              className="m-0 mb-2 w-full border-none bg-transparent p-0 text-[38px] font-bold leading-[1.15] tracking-[-0.025em] text-ink outline-none placeholder:text-ink-faint"
+            />
+          ) : (
+            <h1 className="mb-2 text-[38px] font-bold leading-[1.15] tracking-[-0.025em] text-ink">
+              {note.data.title || 'Untitled'}
+            </h1>
+          )}
+
+          <div className="mb-6 text-[13.5px] text-ink-faint">
+            Updated {new Date(note.data.updatedAt).toLocaleString()}
+          </div>
+
+          {mode === 'edit' ? (
+            <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <label className="flex flex-col gap-1 text-[13px]">
+                <span className="text-ink-muted">Notebook</span>
+                <select
+                  value={notebookId ?? ''}
+                  onChange={(e) => {
+                    setNotebookId(e.target.value || null)
+                    markDirty()
+                  }}
+                  className="w-full rounded-[10px] border border-paper-line-strong bg-paper-surface px-3 py-2 text-[14px] text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris-soft"
+                >
+                  <option value="">No notebook</option>
+                  {notebooks.data?.map((nb) => (
+                    <option key={nb.id} value={nb.id}>
+                      {nb.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex flex-col gap-1 text-[13px] sm:col-span-2">
+                <span className="text-ink-muted">Tags</span>
+                <TagInput
+                  tags={tags}
+                  onChange={(next) => {
+                    setTags(next)
+                    markDirty()
+                  }}
+                  placeholder="Type a tag, press Enter"
+                />
+              </div>
+            </div>
+          ) : (
+            (notebook || note.data.tags.length > 0) && (
+              <div className="mb-6 flex flex-wrap gap-2 text-[12px]">
+                {notebook && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-iris-soft px-2.5 py-1 font-medium text-iris-deep">
+                    {notebook.name}
+                  </span>
+                )}
+                {note.data.tags.map((tag) => (
+                  <Link
+                    key={tag}
+                    to="/notes"
+                    search={{ tag }}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-paper-soft px-2.5 py-1 font-medium text-ink-muted before:text-ink-faint before:content-['#'] hover:text-ink"
+                  >
+                    {tag}
+                  </Link>
+                ))}
+              </div>
+            )
+          )}
+
+          {mode === 'edit' ? (
+            <TipTapEditor
+              key={`edit-${noteId}`}
+              bodyJson={bodyJson}
+              bodyText={bodyText}
+              editable
+              onChange={(next) => {
+                setBodyJson(next.bodyJson)
+                setBodyText(next.bodyText)
+                markDirty()
+              }}
+              placeholder="Start writing…"
+            />
+          ) : note.data.bodyText || (note.data.bodyJson && note.data.bodyJson !== '{}') ? (
+            <TipTapEditor
+              key={`read-${note.data.id}-${note.data.updatedAt}`}
+              bodyJson={note.data.bodyJson}
+              bodyText={note.data.bodyText}
+              editable={false}
+            />
+          ) : (
+            <p className="text-[14px] italic text-ink-faint">
+              No content yet — click Edit to start writing.
+            </p>
+          )}
         </div>
       </div>
-
-      <input
-        type="text"
-        value={title}
-        onChange={(e) => {
-          setTitle(e.target.value)
-          markDirty()
-        }}
-        placeholder="Untitled"
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-ring"
-      />
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label className="space-y-1 text-sm">
-          <span className="text-muted-foreground">Notebook</span>
-          <select
-            value={notebookId ?? ''}
-            onChange={(e) => {
-              setNotebookId(e.target.value || null)
-              markDirty()
-            }}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-ring md:text-sm"
-          >
-            <option value="">No notebook</option>
-            {notebooks.data?.map((nb) => (
-              <option key={nb.id} value={nb.id}>
-                {nb.name}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="space-y-1 text-sm sm:col-span-2">
-          <span className="text-muted-foreground">Tags</span>
-          <TagInput
-            tags={tags}
-            onChange={(next) => {
-              setTags(next)
-              markDirty()
-            }}
-            placeholder="Type a tag, press Enter"
-          />
-        </div>
-      </div>
-
-      <TipTapEditor
-        key={`edit-${noteId}`}
-        bodyJson={bodyJson}
-        bodyText={bodyText}
-        editable
-        onChange={(next) => {
-          setBodyJson(next.bodyJson)
-          setBodyText(next.bodyText)
-          markDirty()
-        }}
-        placeholder="Start writing…"
-      />
-
-      <label className="inline-flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={isPinned}
-          onChange={(e) => {
-            setIsPinned(e.target.checked)
-            markDirty()
-          }}
-        />
-        <span>Pin to top</span>
-      </label>
     </div>
   )
 }
 
-function SaveIndicator({
+function ToolButton({
+  children,
+  active,
+  danger,
+  ...rest
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean; danger?: boolean }) {
+  return (
+    <button
+      type="button"
+      className={`inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-50 ${
+        active
+          ? 'bg-paper-soft text-rating'
+          : danger
+            ? 'text-ink-muted hover:bg-paper-soft hover:text-red-600'
+            : 'text-ink-muted hover:bg-paper-soft hover:text-ink'
+      }`}
+      {...rest}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SavePill({
   status,
   error,
   onRetry,
@@ -419,36 +376,105 @@ function SaveIndicator({
   error: string | null
   onRetry: () => void
 }) {
-  if (status === 'saving') {
-    return (
-      <span className="inline-flex items-center gap-1 text-muted-foreground">
-        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
-        <span>Saving…</span>
-      </span>
-    )
-  }
   if (status === 'error') {
     return (
-      <span className="inline-flex items-center gap-1.5 text-destructive">
-        <AlertCircle className="h-3.5 w-3.5" aria-hidden="true" />
-        <span>{error ?? 'Save failed'}</span>
+      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-red-600">
+        <AlertIcon />
+        <span className="hidden sm:inline">{error ?? 'Save failed'}</span>
         <button
           type="button"
           onClick={onRetry}
-          className="rounded-md border border-input bg-background px-2 py-0.5 text-foreground hover:bg-muted"
+          className="rounded-md border border-paper-line-strong bg-paper-surface px-1.5 py-px text-ink transition hover:bg-paper-soft"
         >
           Retry
         </button>
       </span>
     )
   }
+  if (status === 'saving') {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-ink-faint">
+        <Spinner />
+        Saving…
+      </span>
+    )
+  }
   if (status === 'pending') {
-    return <span className="text-muted-foreground">Unsaved changes…</span>
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-ink-faint">
+        Editing…
+      </span>
+    )
   }
   return (
-    <span className="inline-flex items-center gap-1 text-muted-foreground">
-      <Check className="h-3.5 w-3.5" aria-hidden="true" />
-      <span>Saved</span>
+    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12.5px] text-ink-faint">
+      <span className="text-iris">
+        <CheckIcon />
+      </span>
+      Saved
     </span>
+  )
+}
+
+function PinIcon({ filled }: { filled?: boolean }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.75" strokeLinejoin="round" aria-hidden="true">
+      <path d="m12 3 2.6 5.4 6 .9-4.3 4.2 1 6L12 16.7l-5.3 2.8 1-6L3.4 9.3l6-.9L12 3Z" />
+    </svg>
+  )
+}
+
+function PencilIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+    </svg>
+  )
+}
+
+function SmallTrashIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h16" />
+      <path d="M9 7V4h6v3" />
+      <path d="M6 7v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m5 12 5 5L20 7" />
+    </svg>
+  )
+}
+
+function AlertIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v4" />
+      <path d="M12 16h.01" />
+    </svg>
+  )
+}
+
+function Spinner() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="animate-spin"
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
   )
 }

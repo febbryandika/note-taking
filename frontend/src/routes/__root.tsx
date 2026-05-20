@@ -1,4 +1,4 @@
-import { createRootRouteWithContext, Link, Outlet, useRouter } from '@tanstack/react-router'
+import { createRootRouteWithContext, Link, Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 import type { QueryClient } from '@tanstack/react-query'
 import { signOut, useSession } from '@/lib/auth-client'
 import { ToastProvider } from '@/components/ui/Toast'
@@ -14,10 +14,21 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootLayout() {
   const router = useRouter()
   const { data: session, isPending } = useSession()
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+  const isBareLayout =
+    pathname === '/' || pathname === '/login' || pathname === '/register' || pathname.startsWith('/notes') || pathname === '/trash'
 
   async function handleSignOut() {
     await signOut()
     router.navigate({ to: '/' })
+  }
+
+  if (isBareLayout) {
+    return (
+      <ToastProvider>
+        <Outlet />
+      </ToastProvider>
+    )
   }
 
   return (
@@ -25,7 +36,7 @@ function RootLayout() {
       <div className="min-h-screen bg-background">
         <nav className="flex items-center gap-4 border-b px-4 py-3 sm:px-6">
           <Link to="/" className="text-2xl font-bold tracking-tight text-foreground hover:text-primary">
-            Notes
+            Notable
           </Link>
 
           <div className="ml-auto flex items-center gap-4 text-sm">

@@ -114,6 +114,30 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Notable landing-page tokens — registered so Tailwind generates utilities. */
+@theme {
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, serif;
+
+  --color-paper: #faf8f3;
+  --color-paper-surface: #ffffff;
+  --color-paper-soft: #f4f1ea;
+  --color-paper-softer: #ece8df;
+  --color-paper-line: #e6e1d6;
+  --color-paper-line-strong: #d5cfc0;
+  --color-ink: #1b1a17;
+  --color-ink-muted: #76726a;
+  --color-ink-faint: #a29d92;
+  --color-iris: #4f46e5;
+  --color-iris-soft: rgba(79, 70, 229, 0.1);
+  --color-iris-deep: #4338ca;
+  --color-rating: #d5a21a;
+
+  --shadow-paper-sm: 0 1px 2px rgba(27, 26, 23, 0.04);
+  --shadow-paper-md: 0 4px 16px -4px rgba(27, 26, 23, 0.08), 0 2px 6px -2px rgba(27, 26, 23, 0.05);
+  --shadow-paper-lg: 0 12px 40px -8px rgba(27, 26, 23, 0.14);
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

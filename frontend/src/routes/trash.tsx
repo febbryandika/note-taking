@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
-import { Menu, RotateCcw, Trash2 } from 'lucide-react'
 import { authClient } from '@/lib/auth-client'
 import {
   useCreateNote,
@@ -53,23 +52,21 @@ function TrashPage() {
 
   if (!isDesktop) {
     return (
-      <>
+      <div className="min-h-screen bg-paper font-display text-ink">
         <Drawer open={drawerOpen} onClose={closeDrawer} ariaLabel="Notebooks and tags">
           <NotebookSidebar onNavigate={closeDrawer} />
         </Drawer>
-        <div className="h-[calc(100dvh-7rem)] overflow-y-auto">
+        <div className="h-[100dvh] overflow-y-auto">
           <TrashList onOpenSidebar={() => setDrawerOpen(true)} />
         </div>
-      </>
+      </div>
     )
   }
 
   return (
-    <div className="grid h-[calc(100vh-8rem)] grid-cols-[220px_1fr] gap-4">
-      <aside className="overflow-y-auto border-r border-border pr-2">
-        <NotebookSidebar />
-      </aside>
-      <section className="overflow-y-auto px-2">
+    <div className="grid h-screen min-h-0 grid-cols-[260px_1fr] bg-paper font-display text-[15px] leading-[1.55] tracking-[-0.005em] text-ink">
+      <NotebookSidebar />
+      <section className="flex min-h-0 flex-col bg-paper-surface">
         <TrashList />
       </section>
     </div>
@@ -109,89 +106,96 @@ function TrashList({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <header className="flex items-center gap-2.5 border-b border-paper-line bg-paper-surface px-7 py-3.5">
         {onOpenSidebar && (
           <button
             type="button"
             onClick={onOpenSidebar}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="grid h-8 w-8 place-items-center rounded-md text-ink-muted hover:bg-paper-soft hover:text-ink"
             aria-label="Open menu"
           >
-            <Menu className="h-5 w-5" />
+            <MenuIcon />
           </button>
         )}
-        <h1 className="text-2xl font-semibold">Trash</h1>
-      </div>
+        <h1 className="text-[22px] font-semibold tracking-[-0.02em] text-ink">Trash</h1>
+        <span className="ml-3 text-[13px] text-ink-faint">Restore within 30 days</span>
+      </header>
 
-      {trashed.isError && !trashed.data ? (
-        <QueryError
-          message="Couldn’t load trash."
-          onRetry={() => trashed.refetch()}
-          isRetrying={trashed.isFetching}
-        />
-      ) : trashed.isLoading ? (
-        <ul className="space-y-2">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <li key={i} className="space-y-2 rounded-md border border-border p-3">
-              <Skeleton className="h-4 w-2/3" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-1/3" />
-            </li>
-          ))}
-        </ul>
-      ) : trashed.data && trashed.data.length > 0 ? (
-        <ul className="divide-y divide-border rounded-md border border-border">
-          {trashed.data.map((n) => (
-            <li
-              key={n.id}
-              className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{n.title || 'Untitled'}</p>
-                {n.bodyText && (
-                  <p className="mt-0.5 truncate text-sm text-muted-foreground">
-                    {n.bodyText.slice(0, 120)}
+      <div className="mx-auto w-full max-w-[820px] flex-1 overflow-y-auto px-7 pb-24 pt-10 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-paper-line">
+        {trashed.isError && !trashed.data ? (
+          <QueryError
+            message="Couldn't load trash."
+            onRetry={() => trashed.refetch()}
+            isRetrying={trashed.isFetching}
+          />
+        ) : trashed.isLoading ? (
+          <ul className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <li key={i} className="space-y-2 rounded-[10px] border border-paper-line p-4">
+                <Skeleton className="h-4 w-2/3 bg-paper-soft" />
+                <Skeleton className="h-3 w-full bg-paper-soft" />
+                <Skeleton className="h-3 w-1/3 bg-paper-soft" />
+              </li>
+            ))}
+          </ul>
+        ) : trashed.data && trashed.data.length > 0 ? (
+          <ul className="overflow-hidden rounded-2xl border border-paper-line bg-paper-surface">
+            {trashed.data.map((n, idx) => (
+              <li
+                key={n.id}
+                className={`flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center ${idx > 0 ? 'border-t border-paper-line' : ''}`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-semibold text-ink">{n.title || 'Untitled'}</p>
+                  {n.bodyText && (
+                    <p className="mt-0.5 truncate text-[13px] text-ink-muted">
+                      {n.bodyText.slice(0, 160)}
+                    </p>
+                  )}
+                  <p className="mt-1 text-[11.5px] text-ink-faint">
+                    Trashed {n.trashedAt ? new Date(n.trashedAt).toLocaleString() : ''}
                   </p>
-                )}
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Trashed {n.trashedAt ? new Date(n.trashedAt).toLocaleString() : ''}
-                </p>
+                </div>
+                <div className="flex items-center gap-2 text-[13px]">
+                  <button
+                    type="button"
+                    onClick={() => handleRestore(n.id)}
+                    disabled={restore.isPending}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-paper-line-strong bg-paper px-3 py-1.5 font-medium text-ink-muted transition hover:bg-paper-soft hover:text-ink disabled:opacity-50"
+                    aria-label="Restore"
+                    title="Restore"
+                  >
+                    <RestoreIcon />
+                    Restore
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget({ id: n.id, title: n.title })}
+                    disabled={permanentDelete.isPending}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-300 bg-paper px-3 py-1.5 font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+                    aria-label="Delete permanently"
+                    title="Delete permanently"
+                  >
+                    <SmallTrashIcon />
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="grid place-items-center rounded-2xl border border-dashed border-paper-line bg-paper-surface py-16 text-center">
+            <div>
+              <div className="mx-auto mb-3.5 grid h-14 w-14 place-items-center rounded-2xl bg-paper-soft text-ink-muted">
+                <BigTrashIcon />
               </div>
-              <div className="flex items-center gap-2 text-sm">
-                <button
-                  type="button"
-                  onClick={() => handleRestore(n.id)}
-                  disabled={restore.isPending}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-input px-3 py-2 text-muted-foreground hover:text-foreground disabled:opacity-50 sm:flex-initial sm:py-1"
-                  aria-label="Restore"
-                  title="Restore"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Restore
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteTarget({ id: n.id, title: n.title })}
-                  disabled={permanentDelete.isPending}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-destructive/40 px-3 py-2 text-destructive hover:bg-destructive/10 disabled:opacity-50 sm:flex-initial sm:py-1"
-                  aria-label="Delete permanently"
-                  title="Delete permanently"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border py-12 text-center">
-          <Trash2 className="h-8 w-8 text-muted-foreground" strokeWidth={1.5} />
-          <p className="text-sm font-medium">Trash is empty</p>
-          <p className="text-xs text-muted-foreground">Deleted notes show up here.</p>
-        </div>
-      )}
+              <p className="text-[16px] font-semibold text-ink">Trash is empty</p>
+              <p className="mt-1 text-[13.5px] text-ink-faint">Deleted notes show up here.</p>
+            </div>
+          </div>
+        )}
+      </div>
 
       <ConfirmModal
         open={deleteTarget !== null}
@@ -208,5 +212,44 @@ function TrashList({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
         onClose={() => setDeleteTarget(null)}
       />
     </div>
+  )
+}
+
+function MenuIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </svg>
+  )
+}
+
+function RestoreIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 3v5h5" />
+    </svg>
+  )
+}
+
+function SmallTrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h16" />
+      <path d="M9 7V4h6v3" />
+      <path d="M6 7v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
+    </svg>
+  )
+}
+
+function BigTrashIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h16" />
+      <path d="M9 7V4h6v3" />
+      <path d="M6 7v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
+    </svg>
   )
 }

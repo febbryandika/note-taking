@@ -1,4 +1,4 @@
-# Notes
+# Notable
 
 A personal, full-stack note-taking app — rich-text editor with auto-save, notebooks, tags, full-text search, pinning, and soft-delete trash. Built as a Bun-workspace monorepo with end-to-end type safety from PostgreSQL all the way to the React client.
 

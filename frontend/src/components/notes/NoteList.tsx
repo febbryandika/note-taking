@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearch } from '@tanstack/react-router'
-import { FileText, Menu, Plus, Star, Trash2 } from 'lucide-react'
 import {
   useCreateNote,
   useDeleteNote,
@@ -9,11 +8,10 @@ import {
   useTogglePin,
   type Note,
 } from '@/hooks/useNotes'
-import { Kbd } from '@/components/ui/Kbd'
+import { useNotebooks } from '@/hooks/useNotebooks'
 import { QueryError } from '@/components/ui/QueryError'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
-import { SearchBar } from './SearchBar'
 
 const SEARCH_DEBOUNCE_MS = 250
 
@@ -22,6 +20,9 @@ export function NoteList({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
   const search = useSearch({ from: '/notes' })
   const params = useParams({ strict: false }) as { noteId?: string }
   const activeNoteId = params.noteId
+  const notebooks = useNotebooks()
+  const notebookName = (id: string | null) =>
+    id ? notebooks.data?.find((n) => n.id === id)?.name : undefined
 
   const [searchInput, setSearchInput] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -80,184 +81,355 @@ export function NoteList({ onOpenSidebar }: { onOpenSidebar?: () => void }) {
     }
   }
 
+  const titleText = isSearching
+    ? 'Search results'
+    : search.tag
+      ? `#${search.tag}`
+      : search.notebookId
+        ? notebookName(search.notebookId) ?? 'Notebook'
+        : 'All notes'
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        {onOpenSidebar && (
-          <button
-            type="button"
-            onClick={onOpenSidebar}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Open menu"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        )}
-        <h2 className="flex-1 text-sm font-medium text-muted-foreground">
-          {isSearching ? 'Search results' : 'Notes'}
-        </h2>
-        <button
-          type="button"
-          onClick={handleNewNote}
-          disabled={createNote.isPending}
-          className="inline-flex items-center gap-1.5 rounded-md border border-input px-3 py-1.5 text-sm hover:bg-muted disabled:opacity-50 md:px-2 md:py-1 md:text-xs"
-          aria-label="New note"
-          title="New note"
-        >
-          <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" />
-          New
-          <Kbd combo="mod+n" className="ml-0.5" />
-        </button>
-      </div>
-
-      <SearchBar value={searchInput} onChange={setSearchInput} onClear={clearSearch} />
-
-      {isSearching && !searchResults.isLoading && (
-        <p className="text-[11px] text-muted-foreground">
-          {searchResults.data?.length ?? 0} result
-          {searchResults.data?.length === 1 ? '' : 's'} for{' '}
-          <span className="font-medium text-foreground">"{debouncedQuery}"</span>
-        </p>
-      )}
-
-      {activeQuery.isError && !activeQuery.data ? (
-        <QueryError
-          message={isSearching ? 'Search failed.' : 'Couldn’t load your notes.'}
-          onRetry={() => activeQuery.refetch()}
-          isRetrying={activeQuery.isFetching}
-        />
-      ) : activeLoading ? (
-        <ul className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <li key={i} className="space-y-1.5 rounded-md border border-border p-3">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-2/3" />
-            </li>
-          ))}
-        </ul>
-      ) : activeData && activeData.length > 0 ? (
-        (() => {
-          const pinned = isSearching ? [] : activeData.filter((n) => n.isPinned)
-          const others = isSearching ? activeData : activeData.filter((n) => !n.isPinned)
-          const renderItem = (n: Note) => (
-            <li key={n.id}>
-              <Link
-                to="/notes/$noteId"
-                params={{ noteId: n.id }}
-                search={(prev) => prev}
-                activeProps={{
-                  className: 'border-primary bg-primary/5',
-                }}
-                className="group flex items-start gap-2 rounded-md border border-border p-3 transition-colors hover:bg-muted"
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    togglePin(n.id, !n.isPinned)
-                  }}
-                  className={`-m-1 mt-0 shrink-0 p-1 ${
-                    n.isPinned ? 'text-yellow-500' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                  aria-label={n.isPinned ? 'Unpin' : 'Pin'}
-                  aria-pressed={n.isPinned}
-                  title={n.isPinned ? 'Unpin' : 'Pin'}
-                >
-                  <Star className="h-4 w-4 md:h-3.5 md:w-3.5" fill={n.isPinned ? 'currentColor' : 'none'} />
-                </button>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{n.title || 'Untitled'}</p>
-                  {n.bodyText && (
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                      {n.bodyText.slice(0, 100)}
-                    </p>
-                  )}
-                  <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
-                    {n.tags.slice(0, 3).map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          navigate({ to: '/notes', search: { tag } })
-                        }}
-                        className="rounded-full bg-muted px-2 py-0.5 text-foreground/70 hover:bg-muted/70 hover:text-foreground"
-                      >
-                        #{tag}
-                      </button>
-                    ))}
-                    <span className="ml-auto">{new Date(n.updatedAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    handleTrash(n.id, n.title)
-                  }}
-                  disabled={deleteNote.isPending}
-                  className="-m-1 mt-0 shrink-0 p-1 text-muted-foreground transition-opacity hover:text-destructive disabled:opacity-50 md:opacity-0 md:group-hover:opacity-100"
-                  aria-label="Move to trash"
-                  title="Move to trash"
-                >
-                  <Trash2 className="h-4 w-4 md:h-3.5 md:w-3.5" />
-                </button>
-              </Link>
-            </li>
-          )
-          return (
-            <div className="space-y-3">
-              {pinned.length > 0 && (
-                <div className="space-y-1.5">
-                  <p className="flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                    <Star className="h-3 w-3" fill="currentColor" />
-                    Pinned
-                  </p>
-                  <ul className="space-y-1">{pinned.map(renderItem)}</ul>
-                </div>
-              )}
-              {others.length > 0 && (
-                <div className="space-y-1.5">
-                  {pinned.length > 0 && (
-                    <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Others
-                    </p>
-                  )}
-                  <ul className="space-y-1">{others.map(renderItem)}</ul>
-                </div>
-              )}
-            </div>
-          )
-        })()
-      ) : isSearching ? (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border py-12 text-center">
-          <FileText className="h-8 w-8 text-muted-foreground" strokeWidth={1.5} />
-          <p className="text-sm font-medium">No matches</p>
-          <p className="text-xs text-muted-foreground">
-            Try a different query, or{' '}
+    <section className="flex min-h-0 flex-col border-r border-paper-line">
+      <header className="flex flex-col gap-3.5 px-5 pb-3 pt-5">
+        <div className="flex items-baseline gap-2">
+          {onOpenSidebar && (
             <button
               type="button"
-              onClick={clearSearch}
-              className="font-medium text-foreground underline-offset-2 hover:underline"
+              onClick={onOpenSidebar}
+              className="grid h-7 w-7 place-items-center rounded-md text-ink-muted hover:bg-paper-soft hover:text-ink"
+              aria-label="Open menu"
             >
-              clear search
+              <MenuIcon />
             </button>
-            .
-          </p>
+          )}
+          <h2 className="m-0 text-[22px] font-semibold tracking-[-0.02em] text-ink">{titleText}</h2>
+          <span className="ml-auto text-[13px] font-medium tabular-nums text-ink-faint">
+            {activeData?.length ?? 0}
+          </span>
         </div>
+
+        <SearchBox value={searchInput} onChange={setSearchInput} onClear={clearSearch} />
+
+        <div className="flex items-center gap-1.5 text-[12.5px] text-ink-faint">
+          <span>Sorted by</span>
+          <span className="font-medium text-ink">recent</span>
+          <button
+            type="button"
+            onClick={handleNewNote}
+            disabled={createNote.isPending}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[12.5px] font-medium text-ink-muted transition-colors hover:bg-paper-soft hover:text-ink disabled:opacity-50"
+            title="New note (⌘N)"
+          >
+            <PlusIcon />
+            New
+          </button>
+        </div>
+      </header>
+
+      <div className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-3.5 pb-6 pt-1 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-paper-line">
+        {isSearching && !searchResults.isLoading && (
+          <p className="px-2 pb-1 text-[11.5px] text-ink-faint">
+            {searchResults.data?.length ?? 0} result
+            {searchResults.data?.length === 1 ? '' : 's'} for{' '}
+            <span className="font-medium text-ink">&quot;{debouncedQuery}&quot;</span>
+          </p>
+        )}
+
+        {activeQuery.isError && !activeQuery.data ? (
+          <div className="px-2">
+            <QueryError
+              message={isSearching ? 'Search failed.' : "Couldn't load your notes."}
+              onRetry={() => activeQuery.refetch()}
+              isRetrying={activeQuery.isFetching}
+            />
+          </div>
+        ) : activeLoading ? (
+          <ul className="flex flex-col gap-1.5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <li key={i} className="space-y-1.5 rounded-[10px] border border-paper-line bg-paper-surface p-3.5">
+                <Skeleton className="h-4 w-3/4 bg-paper-soft" />
+                <Skeleton className="h-3 w-full bg-paper-soft" />
+                <Skeleton className="h-3 w-2/3 bg-paper-soft" />
+              </li>
+            ))}
+          </ul>
+        ) : activeData && activeData.length > 0 ? (
+          (() => {
+            const pinned = isSearching ? [] : activeData.filter((n) => n.isPinned)
+            const others = isSearching ? activeData : activeData.filter((n) => !n.isPinned)
+
+            const renderItem = (n: Note) => (
+              <NoteRow
+                key={n.id}
+                note={n}
+                notebookName={notebookName(n.notebookId)}
+                active={activeNoteId === n.id}
+                onTogglePin={() => togglePin(n.id, !n.isPinned)}
+                onTrash={() => handleTrash(n.id, n.title)}
+                onTagClick={(tag) => navigate({ to: '/notes', search: { tag } })}
+                deleting={deleteNote.isPending}
+              />
+            )
+
+            return (
+              <>
+                {pinned.length > 0 && (
+                  <>
+                    <div className="flex items-center gap-1.5 px-2 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+                      <span className="text-rating">
+                        <PinnedStar />
+                      </span>
+                      Pinned
+                    </div>
+                    {pinned.map(renderItem)}
+                  </>
+                )}
+                {others.length > 0 && pinned.length > 0 && (
+                  <div className="px-2 pb-1.5 pt-3 text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-faint">
+                    Others
+                  </div>
+                )}
+                {others.map(renderItem)}
+              </>
+            )
+          })()
+        ) : isSearching ? (
+          <EmptyState
+            title="No matches"
+            body={
+              <>
+                Try a different query, or{' '}
+                <button type="button" onClick={clearSearch} className="font-medium text-ink underline-offset-2 hover:underline">
+                  clear search
+                </button>
+                .
+              </>
+            }
+          />
+        ) : (
+          <EmptyState title="No notes yet" body={<>Click <span className="font-medium text-ink">New</span> to create one.</>} />
+        )}
+      </div>
+    </section>
+  )
+}
+
+function NoteRow({
+  note,
+  notebookName,
+  active,
+  onTogglePin,
+  onTrash,
+  onTagClick,
+  deleting,
+}: {
+  note: Note
+  notebookName: string | undefined
+  active: boolean
+  onTogglePin: () => void
+  onTrash: () => void
+  onTagClick: (tag: string) => void
+  deleting: boolean
+}) {
+  return (
+    <div className="group relative">
+      <Link
+        to="/notes/$noteId"
+        params={{ noteId: note.id }}
+        search={(prev) => prev}
+        className={
+          active
+            ? "relative block cursor-pointer rounded-[10px] border border-paper-line bg-paper-surface px-4 py-3.5 shadow-paper-sm before:absolute before:-left-[14px] before:top-3.5 before:bottom-3.5 before:w-[3px] before:rounded-r-[3px] before:bg-iris before:content-['']"
+            : 'block cursor-pointer rounded-[10px] border border-transparent px-4 py-3.5 transition-colors hover:bg-paper-soft'
+        }
+      >
+        <div className="mb-1 flex items-center gap-1">
+          <div className="flex-1 truncate text-[14.5px] font-semibold tracking-[-0.008em] text-ink">
+            {note.title || 'Untitled'}
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onTrash()
+            }}
+            disabled={deleting}
+            className="hidden shrink-0 rounded p-1 text-ink-faint transition-colors hover:text-red-600 disabled:opacity-50 group-hover:block"
+            aria-label="Move to trash"
+            title="Move to trash"
+          >
+            <SmallTrashIcon />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              onTogglePin()
+            }}
+            className={`shrink-0 rounded p-1 ${note.isPinned ? 'text-rating' : 'text-ink-faint hover:text-rating'}`}
+            aria-label={note.isPinned ? 'Unpin' : 'Pin'}
+            aria-pressed={note.isPinned}
+            title={note.isPinned ? 'Unpin' : 'Pin'}
+          >
+            <PinnedStar filled={note.isPinned} />
+          </button>
+        </div>
+        {note.bodyText && (
+          <p className="line-clamp-2 text-[13px] leading-[1.5] text-ink-muted [text-wrap:pretty]">
+            {note.bodyText.slice(0, 200)}
+          </p>
+        )}
+        <div className="mt-2 flex items-center gap-1.5 text-[11.5px] text-ink-faint">
+          {notebookName && (
+            <span className={`rounded-full px-[7px] py-px font-medium ${active ? 'bg-paper-softer text-ink-muted' : 'bg-paper-soft text-ink-muted'}`}>
+              {notebookName}
+            </span>
+          )}
+          {note.tags.slice(0, 2).map((tag) => (
+            <button
+              key={tag}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onTagClick(tag)
+              }}
+              className={`rounded-full px-[7px] py-px font-medium ${active ? 'bg-paper-softer text-ink-muted' : 'bg-paper-soft text-ink-muted'} hover:text-ink`}
+            >
+              #{tag}
+            </button>
+          ))}
+          <span className="ml-auto">{new Date(note.updatedAt).toLocaleDateString()}</span>
+        </div>
+      </Link>
+    </div>
+  )
+}
+
+function SearchBox({
+  value,
+  onChange,
+  onClear,
+}: {
+  value: string
+  onChange: (v: string) => void
+  onClear: () => void
+}) {
+  return (
+    <div className="relative flex items-center">
+      <svg
+        className="pointer-events-none absolute left-3 text-ink-faint"
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </svg>
+      <input
+        type="search"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape' && value) {
+            e.preventDefault()
+            onClear()
+          }
+        }}
+        placeholder="Search notes…"
+        aria-label="Search notes"
+        className="w-full rounded-[9px] border border-transparent bg-paper-soft py-2.5 pl-9 pr-10 text-[14px] text-ink placeholder:text-ink-faint focus:border-iris focus:bg-paper-surface focus:outline-none focus:ring-4 focus:ring-iris-soft"
+      />
+      {value ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="absolute right-2.5 rounded p-1 text-ink-faint transition-colors hover:bg-paper-surface hover:text-ink"
+          aria-label="Clear search"
+          title="Clear search (Esc)"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
+        </button>
       ) : (
-        <div className="flex flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border py-12 text-center">
-          <FileText className="h-8 w-8 text-muted-foreground" strokeWidth={1.5} />
-          <p className="text-sm font-medium">No notes yet</p>
-          <p className="text-xs text-muted-foreground">
-            Click <span className="font-medium">New</span> to create one.
-          </p>
-        </div>
+        <span className="pointer-events-none absolute right-2.5 inline-flex h-[18px] items-center rounded border border-paper-line bg-paper-softer px-1.5 text-[11px] font-medium text-ink-muted">
+          ⌘K
+        </span>
       )}
     </div>
+  )
+}
+
+function EmptyState({ title, body }: { title: string; body: React.ReactNode }) {
+  return (
+    <div className="grid h-full place-items-center text-center text-ink-faint">
+      <div>
+        <div className="mx-auto mb-3.5 grid h-14 w-14 place-items-center rounded-2xl bg-paper-soft text-ink-muted">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9Z" />
+            <path d="M14 3v6h6" />
+          </svg>
+        </div>
+        <div className="text-[16px] font-semibold text-ink">{title}</div>
+        <p className="text-[13.5px]">{body}</p>
+      </div>
+    </div>
+  )
+}
+
+function MenuIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 6h16" />
+      <path d="M4 12h16" />
+      <path d="M4 18h16" />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
+function PinnedStar({ filled = true }: { filled?: boolean }) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m12 3 2.6 5.4 6 .9-4.3 4.2 1 6L12 16.7l-5.3 2.8 1-6L3.4 9.3l6-.9L12 3Z" />
+    </svg>
+  )
+}
+
+function SmallTrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M4 7h16" />
+      <path d="M9 7V4h6v3" />
+      <path d="M6 7v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7" />
+    </svg>
   )
 }
